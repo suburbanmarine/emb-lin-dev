@@ -31,7 +31,8 @@ PCA9544A_bus::~PCA9544A_bus()
 	// release child bus
 	if( ! m_dev.select_bus(-1) )
 	{
-		throw std::runtime_error("Could not release bus");
+		// TODO: propagate fault info
+		// throw std::runtime_error("Could not release bus");
 	}
 
 	// close parent bus
