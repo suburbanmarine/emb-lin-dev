@@ -4,7 +4,7 @@
  * @license Licensed under the 3-Clause BSD LICENSE. See LICENSE.txt for details.
 */
 
-#include "CFA835.hpp"
+#include "emb-lin-dev/CFA835.hpp"
 
 #include <boost/crc.hpp>
 

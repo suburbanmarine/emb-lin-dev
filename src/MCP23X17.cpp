@@ -1,4 +1,10 @@
-#include "MCP23X17.hpp"
+/**
+ * @author Jacob Schloss <jacob.schloss@suburbanmarine.io>
+ * @copyright Copyright (c) 2024 Suburban Marine, Inc. All rights reserved.
+ * @license Licensed under the 3-Clause BSD LICENSE. See LICENSE.txt for details.
+*/
+
+#include "emb-lin-dev/MCP23X17.hpp"
 
 bool MCP23X17::set_dir(const uint16_t pin_map)
 {

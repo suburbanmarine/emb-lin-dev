@@ -1,6 +1,11 @@
-#include "PCA9544A_bus.hpp"
+/**
+ * @author Jacob Schloss <jacob.schloss@suburbanmarine.io>
+ * @copyright Copyright (c) 2024 Suburban Marine, Inc. All rights reserved.
+ * @license Licensed under the 3-Clause BSD LICENSE. See LICENSE.txt for details.
+*/
 
-#include "PCA9544A.hpp"
+#include "emb-lin-dev/PCA9544A_bus.hpp"
+#include "emb-lin-dev/PCA9544A.hpp"
 
 #include <stdexcept>
 
