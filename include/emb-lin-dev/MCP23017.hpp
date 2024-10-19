@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "I2C_dev_base.hpp"
+#include "emb-lin-dev/I2C_dev_base.hpp"
 
-#include "MCP23X17.hpp"
+#include "emb-lin-dev/MCP23X17.hpp"
 
 class MCP23017 : public I2C_dev_base, public MCP23X17
 {

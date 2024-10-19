@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "I2C_dev_base.hpp"
+#include "emb-lin-dev/I2C_dev_base.hpp"
 
 #include <memory>
 #include <mutex>

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "I2C_dev_base.hpp"
+#include "emb-lin-dev/I2C_dev_base.hpp"
 
 class INA226 : public I2C_dev_base
 {
