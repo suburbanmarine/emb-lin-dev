@@ -7,6 +7,15 @@ project(emb-lin-dev
 	LANGUAGES C CXX
 )
 
+set (THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package (Threads REQUIRED)
+
+find_package(Boost
+	1.65
+	REQUIRED
+		filesystem
+)
+
 add_library(emb-lin-dev
 	src/BIC_2200.cpp
 	src/CFA835.cpp
@@ -21,6 +30,13 @@ add_library(emb-lin-dev
 	src/MCP23X17.cpp
 	src/PCA9544A.cpp
 	src/PCA9544A_bus.cpp
+
+	# TODO: make crypto optional
+	src/crypto/ATECC608_botan.cpp
+	src/crypto/ATECC608_iface.cpp
+	src/crypto/ATECC608_TNGTLS_iface.cpp
+	src/crypto/Certificate_store.cpp
+
 )
 
 target_link_libraries(emb-lin-dev
@@ -34,11 +50,20 @@ target_link_libraries(emb-lin-dev
 	spdlog::spdlog
 
 	i2c
+
+	# TODO: make crypto optional
+	cryptoauth
+	botan-2
+
+	emb-lin-util
 )
 
 target_include_directories(emb-lin-dev
 	PUBLIC
 		include
+
+		# TODO: make crypto optional
+		/usr/include/botan-2
 )
 
 INSTALL(
