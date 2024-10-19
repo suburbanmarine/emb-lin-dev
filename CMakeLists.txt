@@ -1,3 +1,12 @@
+cmake_minimum_required(VERSION 3.18)
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+
+project(emb-lin-dev
+	VERSION 0.0.1
+	DESCRIPTION "Small device drivers for embedded linux userland"
+	LANGUAGES C CXX
+)
+
 add_library(emb-lin-dev
 	src/BIC_2200.cpp
 	src/CFA835.cpp
