@@ -32,6 +32,10 @@ add_library(emb-lin-dev
 	src/PCA9544A_bus.cpp
 
 	src/max38615_spidev.cpp
+	src/RTD_util.cpp
+
+	src/gpio_base.cpp
+	src/gpiod_base.cpp
 
 	src/SPIdev.cpp
 	src/SPIdev_gpiod_cs.cpp
@@ -54,6 +58,7 @@ target_link_libraries(emb-lin-dev
 	spdlog::spdlog
 
 	i2c
+	gpiod
 
 	# TODO: make crypto optional
 	cryptoauth
