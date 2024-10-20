@@ -33,6 +33,7 @@ add_library(emb-lin-dev
 
 	src/max38615_spidev.cpp
 	src/RTD_util.cpp
+	src/MCP23S17.cpp
 
 	src/gpio_base.cpp
 	src/gpiod_base.cpp
