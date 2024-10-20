@@ -21,6 +21,10 @@ add_library(emb-lin-dev
 	src/MCP23X17.cpp
 	src/PCA9544A.cpp
 	src/PCA9544A_bus.cpp
+	src/max38615_spidev.cpp
+
+	src/SPIdev.cpp
+	src/SPIdev_gpiod_cs.cpp
 )
 
 target_link_libraries(emb-lin-dev
