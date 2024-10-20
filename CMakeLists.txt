@@ -16,6 +16,8 @@ find_package(Boost
 		filesystem
 )
 
+configure_file(./include/emb-lin-dev/version.hpp.in version.hpp)
+
 add_library(emb-lin-dev
 	src/BIC_2200.cpp
 	src/CFA835.cpp
