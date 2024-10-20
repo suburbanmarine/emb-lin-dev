@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SPIdev.hpp"
+#include "emb-lin-dev/SPIdev.hpp"
 #include "RTD_util.hpp"
 
 #include <string_view>

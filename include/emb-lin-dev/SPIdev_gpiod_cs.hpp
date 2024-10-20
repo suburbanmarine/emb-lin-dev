@@ -1,7 +1,7 @@
 #pragma once
 
+#include "emb-lin-dev/SPIdev.hpp"
 #include "gpiod_base.hpp"
-#include "SPIdev.hpp"
 
 #include <gpiod.h>
 
