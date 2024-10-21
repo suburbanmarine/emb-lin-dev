@@ -78,6 +78,12 @@ target_include_directories(emb-lin-dev
 		/usr/include/botan-2
 )
 
+set_target_properties(emb-lin-dev
+PROPERTIES
+	VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}
+	SOVERSION ${PROJECT_VERSION_MAJOR}
+)
+
 INSTALL(
 	TARGETS
 		emb-lin-dev
