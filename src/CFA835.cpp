@@ -243,6 +243,74 @@ bool CFA835::set_brightness(const uint8_t display_percent, const uint8_t keypad_
 	return true;
 }
 
+bool CFA835::write_user_flash(const std::vector<uint8_t>& data)
+{
+	if( data.empty() || (data.size() > 124) )
+	{
+		return false;
+	}
+
+	CFA835::CFA835_Packet packet;
+	packet.cmd  = uint8_t(CFA835::OP_CODE::WRITE_USER_FLASH);
+	packet.data = data;
+	packet.crc  = packet.calc_crc();
+	
+	if( ! send_packet(packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to send_packet");
+		return false;
+	}
+
+	if( ! wait_for_packet(&packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to wait_for_packet");
+		return false;
+	}
+
+	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::WRITE_USER_FLASH)) )
+	{
+		return false;
+	}
+
+	return true;
+}
+bool CFA835::read_user_flash(const uint8_t num_to_read, std::vector<uint8_t>* const out_data)
+{
+	if( (num_to_read == 0) || (num_to_read > 124) )
+	{
+		return false;
+	}
+
+	CFA835::CFA835_Packet packet;
+	packet.cmd  = uint8_t(CFA835::OP_CODE::READ_USER_FLASH);
+	packet.data = {{num_to_read}};
+	packet.crc  = packet.calc_crc();
+	
+	if( ! send_packet(packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to send_packet");
+		return false;
+	}
+
+	if( ! wait_for_packet(&packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to wait_for_packet");
+		return false;
+	}
+
+	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::WRITE_USER_FLASH)) )
+	{
+		return false;
+	}
+
+	if(out_data)
+	{
+		*out_data = std::move(packet.data);	
+	}
+	
+	return true;
+}
+
 bool CFA835::clear_display()
 {
 	CFA835::CFA835_Packet packet;
@@ -263,6 +331,65 @@ bool CFA835::clear_display()
 	}
 
 	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::CLEAR_DISPLAY)) )
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool CFA835::restart_display(const RESTART_TYPE restart_type)
+{
+	CFA835::CFA835_Packet packet;
+	packet.cmd  = uint8_t(CFA835::OP_CODE::RESTART);
+
+	switch(restart_type)
+	{
+		case RESTART_TYPE::RELOAD_BOOT_SETTINGS:
+		{
+			packet.data = {{8, 18, 99}};
+			break;
+		}
+		case RESTART_TYPE::RESTART_HOST:
+		{
+			packet.data = {{12, 28, 97}};
+			break;
+		}
+		case RESTART_TYPE::POWER_OFF_HOST:
+		{
+			packet.data = {{3, 11, 95}};
+			break;
+		}
+		case RESTART_TYPE::RESTART_DISPLAY:
+		{
+			packet.data = {{8, 25, 48}};
+			break;
+		}
+		case RESTART_TYPE::RESTORE_DEFAULT_SETTINGS:
+		{
+			packet.data = {{10, 8, 98}};
+			break;
+		}
+		default:
+		{
+			return false;
+		}
+	}
+	packet.crc  = packet.calc_crc();	
+
+	if( ! send_packet(packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to send_packet");
+		return false;
+	}
+
+	if( ! wait_for_packet(&packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to wait_for_packet");
+		return false;
+	}
+
+	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::RESTART)) )
 	{
 		return false;
 	}
@@ -671,12 +798,117 @@ bool CFA835::set_graphic_option(const bool en_manual_buffer_flush, const bool en
 
 	return true;
 }
+bool CFA835::flush_graphics_buffer()
+{
+	CFA835::CFA835_Packet packet;
+	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
+	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::BUFFER_FLUSH)}};
+	packet.crc  = packet.calc_crc();
+	
+	if( ! send_packet(packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to send_packet");
+		return false;
+	}
+
+	if( ! wait_for_packet(&packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to wait_for_packet");
+		return false;
+	}
+
+	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::BUFFER_FLUSH)) )
+	{
+		return false;
+	}
+
+	return true;
+}
+bool CFA835::draw_line(const uint8_t x_start, const uint8_t y_start, const uint8_t x_end, const uint8_t y_end, const uint8_t line_shade)
+{
+	CFA835::CFA835_Packet packet;
+	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
+	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_LINE), x_start, y_start, x_end, y_end, line_shade}};
+	packet.crc  = packet.calc_crc();
+	
+	if( ! send_packet(packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to send_packet");
+		return false;
+	}
+
+	if( ! wait_for_packet(&packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to wait_for_packet");
+		return false;
+	}
+
+	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_LINE)) )
+	{
+		return false;
+	}
+
+	return true;
+}
+bool CFA835::draw_rectangle(const uint8_t x_top_left, const uint8_t y_top_left, const uint8_t width, const uint8_t height, const uint8_t line_shade, const uint8_t fill_shade)
+{
+	CFA835::CFA835_Packet packet;
+	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
+	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_RECTANGLE), x_top_left, y_top_left, width, height, line_shade, fill_shade}};
+	packet.crc  = packet.calc_crc();
+	
+	if( ! send_packet(packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to send_packet");
+		return false;
+	}
+
+	if( ! wait_for_packet(&packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to wait_for_packet");
+		return false;
+	}
+
+	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_RECTANGLE)) )
+	{
+		return false;
+	}
+
+	return true;
+}
+bool CFA835::draw_circle(const uint8_t x_center, const uint8_t y_center, const uint8_t radius, const uint8_t line_shade, const uint8_t fill_shade)
+{
+	CFA835::CFA835_Packet packet;
+	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
+	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_CIRCLE), x_center, y_center, radius, line_shade, fill_shade}};
+	packet.crc  = packet.calc_crc();
+	
+	if( ! send_packet(packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to send_packet");
+		return false;
+	}
+
+	if( ! wait_for_packet(&packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to wait_for_packet");
+		return false;
+	}
+
+	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_CIRCLE)) )
+	{
+		return false;
+	}
+
+	return true;
+}
 
 bool CFA835::set_gpio(const ONBOARD_GPIO gpio, const uint8_t duty_percent, const uint8_t drive_mode)
 {
+	const uint8_t pinfun_drive = 0x08U | (drive_mode & 0x07U);
 	CFA835::CFA835_Packet packet;
 	packet.cmd  = uint8_t(CFA835::OP_CODE::GPIO_CONFIG);
-	packet.data = {{uint8_t(gpio), duty_percent, drive_mode}};
+	packet.data = {{uint8_t(gpio), duty_percent, pinfun_drive}};
 	packet.crc  = packet.calc_crc();
 	
 	if( ! send_packet(packet, PACKET_TIMEOUT) )

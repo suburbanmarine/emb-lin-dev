@@ -105,6 +105,9 @@ public:
 		uint16_t crc;
 	};
 
+	static constexpr uint8_t WIDTH  = 244U;
+	static constexpr uint8_t HEIGHT = 68U;
+
 	enum class ERROR_CODE : uint8_t
 	{
 		UNKNOWN                    = 0x01,
@@ -233,6 +236,46 @@ public:
 		GPIO12 = 0x14U  // H1 pin 8
 	};
 
+	enum class LCD_SHADE : uint8_t
+	{
+		LITE     = 0x00U,
+		SHADE_1  = 0x11U,
+		SHADE_2  = 0x22U,
+		SHADE_3  = 0x33U,
+		SHADE_4  = 0x44U,
+		SHADE_5  = 0x55U,
+		SHADE_6  = 0x66U,
+		SHADE_7  = 0x77U,
+		SHADE_8  = 0x88U,
+		SHADE_9  = 0x99U,
+		SHADE_10 = 0xAAU,
+		SHADE_11 = 0xBBU,
+		SHADE_12 = 0xCCU,
+		SHADE_13 = 0xDDU,
+		SHADE_14 = 0xEEU,
+		DARK     = 0xFFU
+	};
+
+	enum class GPIO_DRIVE_MODE : uint8_t
+	{
+		STRONG_UP_WEAK_DOWN   = 0x00U,
+		// STRONG_UP_STRONG_DOWN = 0x01U,
+		HIZ                   = 0x02U,
+		WEAK_UP_STRONG_DOWN   = 0x03U,
+		STRONG_UP_HIZ_DOWN    = 0x04U,
+		STRONG_UP_STRONG_DOWN = 0x05U,
+		HIZ_UP_STRONG_DOWN    = 0x07U // eg open drain
+	};
+
+	enum class RESTART_TYPE : uint8_t
+	{
+		RELOAD_BOOT_SETTINGS,
+		RESTART_HOST,
+		POWER_OFF_HOST,
+		RESTART_DISPLAY,
+		RESTORE_DEFAULT_SETTINGS
+	};
+
 	bool open(const std::string& path);
 	bool close();
 	bool sync();
@@ -245,7 +288,11 @@ public:
 
 	bool set_gpio(const ONBOARD_GPIO gpio, const uint8_t duty_percent, const uint8_t drive_mode);
 
+	bool write_user_flash(const std::vector<uint8_t>& data);
+	bool read_user_flash(const uint8_t num_to_read, std::vector<uint8_t>* const out_data);
+
 	bool clear_display();
+	bool restart_display(const RESTART_TYPE restart_type);
 
 	// keypad
 	bool set_keypad_reporting_mask(const uint8_t press_mask, const uint8_t release_mask);
@@ -274,6 +321,10 @@ public:
 	// As before, but with boolean transparency mask (both im and mask are CV_8UC1, but im is set to 0 everywhere mask is 0, and the display's transparency mode is enabled)
 	// bool draw_screen(const cv::Mat& im, const cv::Mat& mask, const bool invert_color, const bool rle);
 	bool flush_graphics_buffer();
+
+	bool draw_line(const uint8_t x_start, const uint8_t y_start, const uint8_t x_end, const uint8_t y_end, const uint8_t line_shade);
+	bool draw_rectangle(const uint8_t x_top_left, const uint8_t y_top_left, const uint8_t width, const uint8_t height, const uint8_t line_shade, const uint8_t fill_shade);
+	bool draw_circle(const uint8_t x_center, const uint8_t y_center, const uint8_t radius, const uint8_t line_shade, const uint8_t fill_shade);
 
 	bool send_packet(const CFA835_Packet packet, const std::chrono::milliseconds& max_wait);
 	bool wait_for_packet(CFA835_Packet* out_packet, const std::chrono::milliseconds& max_wait);
