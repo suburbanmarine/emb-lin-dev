@@ -34,6 +34,7 @@ bool CFA835::CFA835_Packet::serialize(std::vector<uint8_t>* out_buf) const
 {
 	if(data.size() > 255)
 	{
+		SPDLOG_WARN("CFA835_Packet::serialize: payload too large");
 		return false;
 	}
 
@@ -50,7 +51,7 @@ bool CFA835::CFA835_Packet::deserialize(const std::vector<uint8_t>& buf)
 {
 	if(buf.size() < 4)
 	{
-		SPDLOG_WARN("CFA835::wait_for_packet: buf too small");
+		SPDLOG_WARN("CFA835_Packet::deserialize: buf too small");
 		return false;
 	}
 	
@@ -58,7 +59,7 @@ bool CFA835::CFA835_Packet::deserialize(const std::vector<uint8_t>& buf)
 	size_t len = buf[1];
 	if(len != (buf.size()-4))
 	{
-		SPDLOG_WARN("CFA835::wait_for_packet: len mismatch");
+		SPDLOG_WARN("CFA835_Packet::deserialize: len mismatch");
 		return false;
 	}
 
@@ -836,35 +837,49 @@ bool CFA835::draw_buffer(const bool transparency, const bool invert, const uint8
 		return false;
 	}
 
+	constexpr bool rle = true;
+	std::vector<uint8_t> rle_buf;
+	std::vector<uint8_t> const * buf_to_send;
+
 	uint8_t opt = 0x00U;
 	if(transparency)
 	{
-		opt |= 0x01U;
+		opt |= (1U << 0);
 	}
 	if(invert)
 	{
-		opt |= 0x02U;
+		opt |= (1U << 1);
 	}
-	// if(rle)
-	// {
-	// 	opt |= 0x04U;
-	// }
+	if(rle)
+	{
+		opt |= (1U << 2);
+	}
+
 	CFA835::CFA835_Packet packet;
 	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
-	packet.data.reserve(buf.size() + 5);
 	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::WRITE_BUFFER), opt, x_start, y_start, width, height}};
-	packet.data.insert(packet.data.end(), buf.begin(), buf.end());
-	
-	// if(rle)
-	// {
-	// 	packet.data.data()+5, packet.data.data()+5+buf.size()
-	// }
-
 	packet.crc  = packet.calc_crc();
-	
+
+	if(rle)
+	{
+		rle_buf.reserve(buf.size());
+		rle_compress(buf, &rle_buf);
+		buf_to_send = &rle_buf;
+	}
+	else
+	{
+		buf_to_send = &buf;
+	}
+
 	if( ! send_packet(packet, PACKET_TIMEOUT) )
 	{
 		SPDLOG_ERROR("Failed to send_packet");
+		return false;
+	}
+
+	if( ! send_buffer(*buf_to_send, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to send_buffer");
 		return false;
 	}
 
@@ -1078,7 +1093,7 @@ bool CFA835::set_all_red_gpio_led(const uint8_t val)
 	return ret;
 }
 
-bool CFA835::send_packet(const CFA835_Packet packet, const std::chrono::milliseconds& max_wait)
+bool CFA835::send_packet(const CFA835_Packet& packet, const std::chrono::milliseconds& max_wait)
 {
 	std::vector<uint8_t> temp;
 
@@ -1087,22 +1102,28 @@ bool CFA835::send_packet(const CFA835_Packet packet, const std::chrono::millisec
 		return false;
 	}
 
+	return send_buffer(temp, max_wait);
+}
+
+bool CFA835::send_buffer(const std::vector<uint8_t>& buf, const std::chrono::milliseconds& max_wait)
+{
 	size_t num_written = 0;
 	do
 	{
-		ssize_t ret = write(m_fd, temp.data(), temp.size());
+		ssize_t ret = write(m_fd, buf.data() + num_written, buf.size() - num_written);
 		if(ret < 0)
 		{
+			SPDLOG_WARN("CFA835::send_buffer: errno: {:d}", errno);
 			return false;
 		}
 
-		SPDLOG_DEBUG("CFA835::send_packet: {:d}", ret);
+		SPDLOG_DEBUG("CFA835::send_buffer: {:d}", ret);
 
 		num_written += size_t(ret);
 
-	} while(num_written < temp.size());
+	} while(num_written < buf.size());
 
-	return num_written == temp.size();
+	return num_written == buf.size();
 }
 
 bool CFA835::wait_for_packet(CFA835_Packet* out_packet, const std::chrono::milliseconds& max_wait)
@@ -1147,9 +1168,10 @@ bool CFA835::wait_for_read(uint8_t* out_data, size_t len, const std::chrono::mil
 	size_t num_read = 0;
 	do
 	{
-		ssize_t ret = read(m_fd, out_data, len);
+		ssize_t ret = read(m_fd, out_data + num_read, len - num_read);
 		if(ret < 0)
 		{
+			SPDLOG_WARN("CFA835::wait_for_read: errno: {:d}", errno);
 			return false;
 		}
 		
@@ -1169,9 +1191,6 @@ bool CFA835::wait_for_read(uint8_t* out_data, size_t len, const std::chrono::mil
 
 size_t CFA835::rle_compress(const std::vector<uint8_t>& in, std::vector<uint8_t>* const out)
 {
-	out->clear();
-	out->reserve(in.size());
-
 	uint8_t const * ptr = in.data();
 	uint8_t const * end = in.data() + in.size();
 
@@ -1215,10 +1234,19 @@ size_t CFA835::rle_compress(const std::vector<uint8_t>& in, std::vector<uint8_t>
 					run_len++;
 				}
 
-				// output run
-				out->push_back(0x03);
-				out->push_back(run_len);
-				out->push_back(this_val);
+				if(run_len > 2)
+				{
+					// output run
+					out->push_back(0x03);
+					out->push_back(run_len);
+					out->push_back(this_val);
+				}
+				else
+				{
+					//2 is short to just output
+					out->push_back(this_val);
+					out->push_back(this_val);
+				}
 
 				// consume input
 				ptr += run_len;

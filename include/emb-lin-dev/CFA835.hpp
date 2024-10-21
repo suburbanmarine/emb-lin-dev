@@ -107,6 +107,7 @@ public:
 
 	static constexpr size_t WIDTH  = 244U;
 	static constexpr size_t HEIGHT = 68U;
+	static constexpr size_t NUM_PX = WIDTH*HEIGHT;
 
 	enum class ERROR_CODE : uint8_t
 	{
@@ -290,16 +291,13 @@ public:
 	bool get_module_info(const bool serial_nversion, std::string* const out_info);
 
 	bool set_brightness(const uint8_t display_percent, const uint8_t keypad_percent);
-
 	bool set_gpio(const ONBOARD_GPIO gpio, const uint8_t duty_percent, const uint8_t drive_mode);
 
-	// turn all onboard indication leds off
+	// set all onboard indication leds
 	// does not change backlight or keypad brightness
 	bool set_all_gpio_led(const uint8_t val);
-
 	bool set_all_green_gpio_led(const uint8_t val);
 	bool set_all_red_gpio_led(const uint8_t val);
-
 
 	bool write_user_flash(const std::vector<uint8_t>& data);
 	bool read_user_flash(const uint8_t num_to_read, std::vector<uint8_t>* const out_data);
@@ -342,7 +340,8 @@ public:
 	bool draw_rectangle(const uint8_t x_top_left, const uint8_t y_top_left, const uint8_t width, const uint8_t height, const uint8_t line_shade, const uint8_t fill_shade);
 	bool draw_circle(const uint8_t x_center, const uint8_t y_center, const uint8_t radius, const uint8_t line_shade, const uint8_t fill_shade);
 
-	bool send_packet(const CFA835_Packet packet, const std::chrono::milliseconds& max_wait);
+	bool send_packet(const CFA835_Packet& packet, const std::chrono::milliseconds& max_wait);
+	bool send_buffer(const std::vector<uint8_t>& buf, const std::chrono::milliseconds& max_wait);
 	bool wait_for_packet(CFA835_Packet* out_packet, const std::chrono::milliseconds& max_wait);
 	bool wait_for_read(uint8_t* out_data, size_t len, const std::chrono::milliseconds& max_wait);
 
