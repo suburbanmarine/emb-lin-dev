@@ -105,8 +105,8 @@ public:
 		uint16_t crc;
 	};
 
-	static constexpr uint8_t WIDTH  = 244U;
-	static constexpr uint8_t HEIGHT = 68U;
+	static constexpr size_t WIDTH  = 244U;
+	static constexpr size_t HEIGHT = 68U;
 
 	enum class ERROR_CODE : uint8_t
 	{
@@ -191,7 +191,7 @@ public:
 		WRITE_BUFFER           = 0x02,
 		LOAD_SDCARD_IMAGE      = 0x03,
 		SAVE_SCREENSHOT_SDCARD = 0x04,
-		SET_PIXEL_DATA         = 0x05,
+		DRAW_PIXEL             = 0x05,
 		DRAW_LINE              = 0x06,
 		DRAW_RECTANGLE         = 0x07,
 		DRAW_CIRCLE            = 0x08
@@ -255,16 +255,21 @@ public:
 		SHADE_14 = 0xEEU,
 		DARK     = 0xFFU
 	};
+	static constexpr uint8_t pixel_shade_mask(const uint8_t val)
+	{
+		return val & 0xF0U;
+	}
 
+	// Drive strength options, ignored for onboard LEDs
 	enum class GPIO_DRIVE_MODE : uint8_t
 	{
 		STRONG_UP_WEAK_DOWN   = 0x00U,
 		// STRONG_UP_STRONG_DOWN = 0x01U,
-		HIZ                   = 0x02U,
+		HIZ                   = 0x02U, // eg HI-Z input
 		WEAK_UP_STRONG_DOWN   = 0x03U,
-		STRONG_UP_HIZ_DOWN    = 0x04U,
+		STRONG_UP_HIZ_DOWN    = 0x04U, // eg open source
 		STRONG_UP_STRONG_DOWN = 0x05U,
-		HIZ_UP_STRONG_DOWN    = 0x07U // eg open drain
+		HIZ_UP_STRONG_DOWN    = 0x07U  // eg open drain
 	};
 
 	enum class RESTART_TYPE : uint8_t
@@ -288,10 +293,19 @@ public:
 
 	bool set_gpio(const ONBOARD_GPIO gpio, const uint8_t duty_percent, const uint8_t drive_mode);
 
+	// turn all onboard indication leds off
+	// does not change backlight or keypad brightness
+	bool set_all_gpio_led(const uint8_t val);
+
+	bool set_all_green_gpio_led(const uint8_t val);
+	bool set_all_red_gpio_led(const uint8_t val);
+
+
 	bool write_user_flash(const std::vector<uint8_t>& data);
 	bool read_user_flash(const uint8_t num_to_read, std::vector<uint8_t>* const out_data);
 
 	bool clear_display();
+	bool all_on_display();
 	bool restart_display(const RESTART_TYPE restart_type);
 
 	// keypad
@@ -322,6 +336,8 @@ public:
 	// bool draw_screen(const cv::Mat& im, const cv::Mat& mask, const bool invert_color, const bool rle);
 	bool flush_graphics_buffer();
 
+	bool draw_buffer(const bool transparency, const bool invert, const uint8_t x_start, const uint8_t y_start, const uint8_t width, const uint8_t height, const std::vector<uint8_t>& buf);
+	bool draw_pixel(const uint8_t x, const uint8_t y, const uint8_t shade);
 	bool draw_line(const uint8_t x_start, const uint8_t y_start, const uint8_t x_end, const uint8_t y_end, const uint8_t line_shade);
 	bool draw_rectangle(const uint8_t x_top_left, const uint8_t y_top_left, const uint8_t width, const uint8_t height, const uint8_t line_shade, const uint8_t fill_shade);
 	bool draw_circle(const uint8_t x_center, const uint8_t y_center, const uint8_t radius, const uint8_t line_shade, const uint8_t fill_shade);
@@ -331,7 +347,7 @@ public:
 	bool wait_for_read(uint8_t* out_data, size_t len, const std::chrono::milliseconds& max_wait);
 
 	// 0x03, len, value
-	static void rle_compress(const std::vector<uint8_t>& in_buf, std::vector<uint8_t>* const out_buf);
+	size_t rle_compress(const std::vector<uint8_t>& in, std::vector<uint8_t>* const out);
 
 	static constexpr std::chrono::milliseconds PACKET_TIMEOUT = std::chrono::milliseconds(2000);
 

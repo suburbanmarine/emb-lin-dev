@@ -338,6 +338,11 @@ bool CFA835::clear_display()
 	return true;
 }
 
+bool CFA835::all_on_display()
+{
+	return draw_rectangle(0, 0, WIDTH-1, HEIGHT-1, uint8_t(CFA835::LCD_SHADE::DARK), uint8_t(CFA835::LCD_SHADE::DARK));
+}
+
 bool CFA835::restart_display(const RESTART_TYPE restart_type)
 {
 	CFA835::CFA835_Packet packet;
@@ -824,6 +829,85 @@ bool CFA835::flush_graphics_buffer()
 
 	return true;
 }
+bool CFA835::draw_buffer(const bool transparency, const bool invert, const uint8_t x_start, const uint8_t y_start, const uint8_t width, const uint8_t height, const std::vector<uint8_t>& buf)
+{
+	if(buf.empty() || (buf.size() > (WIDTH*HEIGHT)))
+	{
+		return false;
+	}
+
+	uint8_t opt = 0x00U;
+	if(transparency)
+	{
+		opt |= 0x01U;
+	}
+	if(invert)
+	{
+		opt |= 0x02U;
+	}
+	// if(rle)
+	// {
+	// 	opt |= 0x04U;
+	// }
+	CFA835::CFA835_Packet packet;
+	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
+	packet.data.reserve(buf.size() + 5);
+	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::WRITE_BUFFER), opt, x_start, y_start, width, height}};
+	packet.data.insert(packet.data.end(), buf.begin(), buf.end());
+	
+	// if(rle)
+	// {
+	// 	packet.data.data()+5, packet.data.data()+5+buf.size()
+	// }
+
+	packet.crc  = packet.calc_crc();
+	
+	if( ! send_packet(packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to send_packet");
+		return false;
+	}
+
+	if( ! wait_for_packet(&packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to wait_for_packet");
+		return false;
+	}
+
+	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::WRITE_BUFFER)) )
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool CFA835::draw_pixel(const uint8_t x, const uint8_t y, const uint8_t shade)
+{
+	CFA835::CFA835_Packet packet;
+	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
+	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_PIXEL), x, y, shade}};
+	packet.crc  = packet.calc_crc();
+	
+	if( ! send_packet(packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to send_packet");
+		return false;
+	}
+
+	if( ! wait_for_packet(&packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to wait_for_packet");
+		return false;
+	}
+
+	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_PIXEL)) )
+	{
+		return false;
+	}
+
+	return true;
+}
 bool CFA835::draw_line(const uint8_t x_start, const uint8_t y_start, const uint8_t x_end, const uint8_t y_end, const uint8_t line_shade)
 {
 	CFA835::CFA835_Packet packet;
@@ -931,6 +1015,69 @@ bool CFA835::set_gpio(const ONBOARD_GPIO gpio, const uint8_t duty_percent, const
 	return true;
 }
 
+bool CFA835::set_all_gpio_led(const uint8_t val)
+{
+	bool ret = true;
+	const std::array<CFA835::ONBOARD_GPIO, 8> all_leds = {{
+		CFA835::ONBOARD_GPIO::LED0R, CFA835::ONBOARD_GPIO::LED0G,
+		CFA835::ONBOARD_GPIO::LED1R, CFA835::ONBOARD_GPIO::LED1G,
+		CFA835::ONBOARD_GPIO::LED2R, CFA835::ONBOARD_GPIO::LED2G,
+		CFA835::ONBOARD_GPIO::LED3R, CFA835::ONBOARD_GPIO::LED3G
+	}};
+
+	for(const auto& x : all_leds)
+	{
+		if( ! set_gpio(x, val, 0) )
+		{
+			ret = false;
+		}
+	}
+
+	return ret;
+}
+
+bool CFA835::set_all_green_gpio_led(const uint8_t val)
+{
+	bool ret = true;
+	const std::array<CFA835::ONBOARD_GPIO, 4> all_leds = {{
+		CFA835::ONBOARD_GPIO::LED0G,
+		CFA835::ONBOARD_GPIO::LED1G,
+		CFA835::ONBOARD_GPIO::LED2G,
+		CFA835::ONBOARD_GPIO::LED3G
+	}};
+
+	for(const auto& x : all_leds)
+	{
+		if( ! set_gpio(x, val, 0) )
+		{
+			ret = false;
+		}
+	}
+
+	return ret;
+}
+
+bool CFA835::set_all_red_gpio_led(const uint8_t val)
+{
+	bool ret = true;
+	const std::array<CFA835::ONBOARD_GPIO, 4> all_leds = {{
+		CFA835::ONBOARD_GPIO::LED0R,
+		CFA835::ONBOARD_GPIO::LED1R,
+		CFA835::ONBOARD_GPIO::LED2R,
+		CFA835::ONBOARD_GPIO::LED3R
+	}};
+
+	for(const auto& x : all_leds)
+	{
+		if( ! set_gpio(x, val, 0) )
+		{
+			ret = false;
+		}
+	}
+
+	return ret;
+}
+
 bool CFA835::send_packet(const CFA835_Packet packet, const std::chrono::milliseconds& max_wait)
 {
 	std::vector<uint8_t> temp;
@@ -1018,4 +1165,84 @@ bool CFA835::wait_for_read(uint8_t* out_data, size_t len, const std::chrono::mil
 	} while(num_read < len);
 
 	return num_read == len;
+}
+
+size_t CFA835::rle_compress(const std::vector<uint8_t>& in, std::vector<uint8_t>* const out)
+{
+	out->clear();
+	out->reserve(in.size());
+
+	uint8_t const * ptr = in.data();
+	uint8_t const * end = in.data() + in.size();
+
+	// TODO check boundary condition and test...
+	while(ptr != end)
+	{
+		// only high 8 bits matter, so drop the low 8 for better compression
+		const uint8_t this_val = pixel_shade_mask(ptr[0]);
+
+		if((ptr+1) == end)
+		{
+			if(this_val == 0x03)
+			{
+				// force encode 0x03 as a run
+
+				// output run
+				out->push_back(0x03);
+				out->push_back(1);
+				out->push_back(this_val);
+
+				// consume input
+				ptr++;
+			}
+			else
+			{
+				// not in a run
+				out->push_back(this_val);
+				ptr++;
+			}
+		}
+		else
+		{
+			const uint8_t next_val = pixel_shade_mask(ptr[1]);
+
+			if( this_val == next_val )
+			{
+				// find length of run
+				size_t run_len = 2;
+				while( (run_len < 255) && ((ptr+run_len) != end) && (this_val == pixel_shade_mask(ptr[run_len])) )
+				{
+					run_len++;
+				}
+
+				// output run
+				out->push_back(0x03);
+				out->push_back(run_len);
+				out->push_back(this_val);
+
+				// consume input
+				ptr += run_len;
+			}
+			else if(this_val == 0x03)
+			{
+				// force encode 0x03 as a run
+
+				// output run
+				out->push_back(0x03);
+				out->push_back(1);
+				out->push_back(this_val);
+
+				// consume input
+				ptr++;
+			}
+			else
+			{
+				// not in a run
+				out->push_back(this_val);
+				ptr++;
+			}
+		}
+	}
+
+	return out->size();
 }
