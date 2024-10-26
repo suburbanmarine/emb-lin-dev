@@ -159,7 +159,7 @@ bool BIC_2200::close()
 bool BIC_2200::read_mf_id(std::string* const out_mf_id)
 {
 	BIC2200_Packet cmd;
-	cmd.addr = GET_HOST_TO_BIC_ADDR(0);
+	cmd.addr = GET_HOST_TO_BIC_ADDR(m_bic_addr);
 	cmd.cmd  = CMD_OPCODE::MFR_ID_B0B5;
 
 	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
@@ -181,6 +181,11 @@ bool BIC_2200::read_mf_id(std::string* const out_mf_id)
 
 	BIC2200_Packet r1;
 	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r1) )
+	{
+		return false;
+	}
+
+	if( (!r0->is_bic_response(m_bic_addr)) || (!r1->is_bic_response(m_bic_addr)) )
 	{
 		return false;
 	}
@@ -207,7 +212,7 @@ bool BIC_2200::read_mf_id(std::string* const out_mf_id)
 bool BIC_2200::read_model(std::string* const out_model)
 {
 	BIC2200_Packet cmd;
-	cmd.addr = GET_HOST_TO_BIC_ADDR(0);
+	cmd.addr = GET_HOST_TO_BIC_ADDR(m_bic_addr);
 	cmd.cmd  = CMD_OPCODE::MFR_MODEL_B0B5;
 
 	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
@@ -229,6 +234,11 @@ bool BIC_2200::read_model(std::string* const out_model)
 
 	BIC2200_Packet r1;
 	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r1) )
+	{
+		return false;
+	}
+
+	if( (!r0->is_bic_response(m_bic_addr)) || (!r1->is_bic_response(m_bic_addr)) )
 	{
 		return false;
 	}
@@ -255,7 +265,7 @@ bool BIC_2200::read_model(std::string* const out_model)
 bool BIC_2200::read_fw_rev(std::vector<std::string>* const out_fw_rev)
 {
 	BIC2200_Packet cmd;
-	cmd.addr = GET_HOST_TO_BIC_ADDR(0);
+	cmd.addr = GET_HOST_TO_BIC_ADDR(m_bic_addr);
 	cmd.cmd  = CMD_OPCODE::MFR_REVISION_B0B5;
 
 	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
@@ -265,6 +275,11 @@ bool BIC_2200::read_fw_rev(std::vector<std::string>* const out_fw_rev)
 
 	BIC2200_Packet r0;
 	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r0) )
+	{
+		return false;
+	}
+
+	if( ! r0->is_bic_response(m_bic_addr) )
 	{
 		return false;
 	}
@@ -299,7 +314,7 @@ bool BIC_2200::read_fw_rev(std::vector<std::string>* const out_fw_rev)
 bool BIC_2200::read_serial(std::string* const out_date, std::string* const out_serial)
 {
 	BIC2200_Packet cmd;
-	cmd.addr = GET_HOST_TO_BIC_ADDR(0);
+	cmd.addr = GET_HOST_TO_BIC_ADDR(m_bic_addr);
 	cmd.cmd  = CMD_OPCODE::MFR_SERIAL_B0B5;
 
 	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
@@ -321,6 +336,11 @@ bool BIC_2200::read_serial(std::string* const out_date, std::string* const out_s
 
 	BIC2200_Packet r1;
 	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r1) )
+	{
+		return false;
+	}
+
+	if( (!r0->is_bic_response(m_bic_addr)) || (!r1->is_bic_response(m_bic_addr)) )
 	{
 		return false;
 	}
@@ -439,6 +459,11 @@ bool BIC_2200::wait_rx_can_packet(const std::chrono::nanoseconds& max_wait_time,
 	}
 
 	if( ! out_packet->from_can_frame(rx_frame) )
+	{
+		return false;
+	}
+
+	if( ! out_packet->is_bic_response() )
 	{
 		return false;
 	}
