@@ -139,6 +139,10 @@ public:
 		{
 			return is_bic_command() && is_bic_addr(bic_addr);
 		}
+		bool is_bic_command(const uint8_t bic_addr, const CMD_OPCODE bic_cmd) const
+		{
+			return is_bic_command() && is_bic_addr(bic_addr) && (cmd == bic_cmd);
+		}
 		bool is_bic_response(const uint8_t bic_addr) const
 		{
 			return is_bic_response() && is_bic_addr(bic_addr);
