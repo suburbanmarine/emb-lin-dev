@@ -122,19 +122,15 @@ public:
 		bool to_can_frame(can_frame* const out_can_frame) const;
 		bool from_can_frame(const can_frame& frame);
 
-		bool is_bic_command() const
-		{
-			return (addr & 0xFFFFFF00) == 0x000C0200U;
-		}
-		bool is_bic_response() const
-		{
-			return (addr & 0xFFFFFF00) == 0x000C0300U;
-		}
 		bool is_bic_addr(const uint8_t bic_addr) const
 		{
 			return (addr & 0x000000FF) == uint32_t(bic_addr);
 		}
 
+		bool is_bic_command() const
+		{
+			return (addr & 0xFFFFFF00) == 0x000C0200U;
+		}
 		bool is_bic_command(const uint8_t bic_addr) const
 		{
 			return is_bic_command() && is_bic_addr(bic_addr);
@@ -142,6 +138,11 @@ public:
 		bool is_bic_command(const uint8_t bic_addr, const CMD_OPCODE bic_cmd) const
 		{
 			return is_bic_command() && is_bic_addr(bic_addr) && (cmd == bic_cmd);
+		}
+
+		bool is_bic_response() const
+		{
+			return (addr & 0xFFFFFF00) == 0x000C0300U;
 		}
 		bool is_bic_response(const uint8_t bic_addr) const
 		{
