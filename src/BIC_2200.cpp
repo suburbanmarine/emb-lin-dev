@@ -21,8 +21,69 @@
 #include <linux/can/error.h>
 
 #include <array>
+#include <thread>
 
 #include <cstring>
+
+bool BIC_2200::BIC2200_Packet::to_can_frame(can_frame* const out_can_frame) const
+{
+	if( ! out_can_frame )
+	{
+		return false;
+	}
+
+	if(payload.size() > 6)
+	{
+		return false;
+	}
+
+	memset(out_can_frame, 0, sizeof(can_frame));
+
+	out_can_frame->can_id  = (addr & CAN_EFF_MASK) | CAN_EFF_FLAG;
+	out_can_frame->len     = payload.size() + 2;
+	out_can_frame->data[0] = (uint16_t(cmd) & 0x00FFU) >> 0;
+	out_can_frame->data[1] = (uint16_t(cmd) & 0xFF00U) >> 8;
+
+	memcpy(out_can_frame->data+2, payload.data(), payload.size());
+
+	return true;
+}
+
+bool BIC_2200::BIC2200_Packet::from_can_frame(const can_frame& frame)
+{
+	if(frame.len > 8)
+	{
+		return false;
+	}
+
+	if(frame.len < 2)
+	{
+		return false;
+	}
+
+	if( (addr & CAN_EFF_FLAG) == 0)
+	{
+		return false;
+	}
+
+	if( (addr & CAN_RTR_FLAG) == 0)
+	{
+		return false;
+	}
+
+	if( (addr & CAN_ERR_FLAG) == 0)
+	{
+		return false;
+	}
+
+	addr = frame.can_id & CAN_EFF_MASK;
+	cmd  = static_cast<CMD_OPCODE>( (uint16_t(frame.data[1]) << 8) | (uint16_t(frame.data[0]) << 0) );
+
+	payload.resize(frame.len-2);
+	memcpy(payload.data(), frame.data+2, frame.len-2);
+
+	return true;
+}
 
 BIC_2200::BIC_2200()
 {
@@ -74,6 +135,11 @@ bool BIC_2200::open(const std::string& iface)
 		return false;
 	}
 
+	if( ! m_tx_stopwatch.start() )
+	{
+		return false;
+	}
+
 	return true;
 }
 bool BIC_2200::close()
@@ -90,8 +156,100 @@ bool BIC_2200::close()
 }
 
 
+bool BIC_2200::read_mf_id(std::string* const out_mf_id)
+{
+	BIC2200_Packet cmd;
+	cmd.addr = GET_HOST_TO_BIC_ADDR(0);
+	cmd.cmd  = CMD_OPCODE::MFR_ID_B0B5;
+
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	BIC2200_Packet r0;
+	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r0) )
+	{
+		return false;
+	}
+
+	cmd.cmd = CMD_OPCODE::MFR_ID_B6B11;
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	BIC2200_Packet r1;
+	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r1) )
+	{
+		return false;
+	}
+
+	if( (r0.cmd != CMD_OPCODE::MFR_ID_B0B5) || (r1.cmd != CMD_OPCODE::MFR_ID_B6B11) )
+	{
+		return false;
+	}
+
+	if(out_mf_id)
+	{
+		out_mf_id->clear();
+		out_mf_id->insert(out_mf_id->end(), r0.payload.begin(), r0.payload.end());
+		out_mf_id->insert(out_mf_id->end(), r1.payload.begin(), r1.payload.end());
+	}
+
+	return true;
+}
+bool BIC_2200::read_model(std::string* const out_model)
+{
+	return true;
+}
+bool BIC_2200::read_fw_rev(std::vector<std::string>* const out_fw_rev)
+{
+	return true;
+}
+bool BIC_2200::read_serial(std::string* const out_serial)
+{
+	return true;
+}
+
+bool BIC_2200::wait_tx_can_packet(const std::chrono::microseconds& max_wait_time, const BIC2200_Packet& packet)
+{
+	can_frame tx_frame;
+
+	if( ! packet.to_can_frame(&tx_frame) )
+	{
+		return false;
+	}
+
+	return wait_tx_can_packet(max_wait_time, tx_frame);
+}
+
 bool BIC_2200::wait_tx_can_packet(const std::chrono::microseconds& max_wait_time, const can_frame& tx_frame)
 {
+	// Enforce max packet rate of MIN_REQUEST_PERIOD and adjust max_wait_ts
+	{
+		bool is_exp;
+		if( ! m_tx_stopwatch.is_expired(MIN_REQUEST_PERIOD, &is_exp) )
+		{
+			return false;
+		}
+
+		if( ! is_exp )
+		{
+			std::chrono::nanoseconds watch_time;
+			if( ! m_tx_stopwatch.get_time(&watch_time) )
+			{
+				return false;
+			}
+
+			std::chrono::nanoseconds sleep_duration = MIN_REQUEST_PERIOD - watch_time;
+			if(sleep_duration > std::chrono::nanoseconds::zero())
+			{
+				std::this_thread::sleep_for(sleep_duration);
+			}
+		}
+	}
+
 	pollfd write_fds[] = {
 		{.fd = m_fd, .events = POLLOUT}
 	};
@@ -114,6 +272,11 @@ bool BIC_2200::wait_tx_can_packet(const std::chrono::microseconds& max_wait_time
 
 	ssize_t len = write(m_fd, &tx_frame, sizeof(can_frame));
 
+	if( ! m_tx_stopwatch.reset() )
+	{
+		return false;
+	}
+
 	if (len < 0)
 	{
 		// todo log errno
@@ -123,6 +286,22 @@ bool BIC_2200::wait_tx_can_packet(const std::chrono::microseconds& max_wait_time
 	if (len != sizeof(can_frame) )
 	{
 		// underrun?
+		return false;
+	}
+
+	return true;
+}
+
+bool BIC_2200::wait_rx_can_packet(const std::chrono::microseconds& max_wait_time, BIC2200_Packet* const out_packet)
+{
+	can_frame rx_frame;
+	if( ! wait_rx_can_packet(max_wait_time, &rx_frame) )
+	{
+		return false;
+	}
+
+	if( ! out_packet->from_can_frame(rx_frame) )
+	{
 		return false;
 	}
 

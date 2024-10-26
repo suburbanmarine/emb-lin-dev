@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <emb-lin-util/Stopwatch.hpp>
+
 #include <linux/can.h>
 
 #include <chrono>
@@ -108,12 +110,17 @@ public:
 		{
 			payload.reserve(6);
 		}
+		~BIC2200_Packet()
+		{
+			
+		}
 
 		uint32_t   addr;
 		CMD_OPCODE cmd;
 		std::vector<uint8_t> payload; // up to 6 bytes of payload
 
-		bool to_can_frame(can_frame* const out_can_frame);
+		bool to_can_frame(can_frame* const out_can_frame) const;
+		bool from_can_frame(const can_frame& frame);
 	};
 
 	constexpr static uint32_t GET_HOST_TO_BIC_ADDR(const uint8_t bic_addr)
@@ -133,13 +140,27 @@ public:
 	bool open(const std::string& iface);
 	bool close();
 
+	bool read_mf_id(std::string* const out_mf_id);
+	bool read_model(std::string* const out_model);
+	bool read_fw_rev(std::vector<std::string>* const out_fw_rev);
+	bool read_serial(std::string* const out_serial);
+
 	bool send_command(const BIC2200_Packet& packet);
 	bool wait_response(const std::chrono::microseconds& max_wait_time, BIC2200_Packet* const packet);
 
 protected:
 
+	constexpr static std::chrono::milliseconds MIN_REQUEST_PERIOD = std::chrono::milliseconds(20);
+	constexpr static std::chrono::milliseconds MAX_RESPONSE_TIME  = std::chrono::milliseconds(5);
+	constexpr static std::chrono::milliseconds MIN_MARGIN_TIME    = std::chrono::milliseconds(5);
+
+	// max_wait_time is delay in addition to the delay needed to enforce MIN_REQUEST_PERIOD
+	bool wait_tx_can_packet(const std::chrono::microseconds& max_wait_time, const BIC2200_Packet& packet);
 	bool wait_tx_can_packet(const std::chrono::microseconds& max_wait_time, const can_frame& frame);
+	
+	bool wait_rx_can_packet(const std::chrono::microseconds& max_wait_time, BIC2200_Packet* const out_packet);
 	bool wait_rx_can_packet(const std::chrono::microseconds& max_wait_time, can_frame* const out_frame);
 
 	int m_fd;
+	Stopwatch m_tx_stopwatch;
 };
