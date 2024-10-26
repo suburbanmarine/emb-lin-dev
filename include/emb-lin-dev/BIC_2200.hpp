@@ -20,7 +20,7 @@ class BIC_2200
 {
 public:
 
-	enum class CMD_OPCODE: uint16_t
+	enum class CMD_OPCODE : uint16_t
 	{
 		OPERATION            = 0x0000U, 
 		VOUT_SET             = 0x0020U,
@@ -50,7 +50,7 @@ public:
 		BIDIRECTIONAL_CONFIG = 0x0140U
 	};
 
-	enum class SCALE_FACTOR: uint8_t
+	enum class SCALE_FACTOR : uint8_t
 	{
 		NOT_SUPPORTED = 0x00,
 		MILLI         = 0x04,
@@ -61,20 +61,21 @@ public:
 		HUNDRED       = 0x09
 	};
 
-	enum class EEP_CONFIG: uint8_t
+	enum class EEP_CONFIG : uint8_t
 	{
 		IMMEDIATE    = 0x00,
 		DELAY_1_MIN  = 0x01,
 		DELAY_10_MIN = 0x02
 	};
 
-	enum class OP_INIT: uint8_t
+	enum class OP_INIT : uint8_t
 	{
 		POWER_OFF  = 0x00,
 		POWER_ON   = 0x01,
 		POWER_LAST = 0x02
 	};
 
+	// SCALING_FACTOR (0x00C0)
 	struct SCALING_FACTORS
 	{
 		SCALE_FACTOR iin;
@@ -83,6 +84,28 @@ public:
 		SCALE_FACTOR vin;
 		SCALE_FACTOR iout;
 		SCALE_FACTOR vout;
+	};
+
+	// FAULT_STATUS (0x0040) bitmask values
+	enum class FAULT_STATUS_BITMASK : uint16_t
+	{
+		FAULT_STATUS_FAN_FAIL = 1U << 0,
+		FAULT_STATUS_OTP      = 1U << 1,
+		FAULT_STATUS_OVP      = 1U << 2,
+		FAULT_STATUS_OLP      = 1U << 3,
+		FAULT_STATUS_SHORT    = 1U << 4,
+		FAULT_STATUS_AC_FAIL  = 1U << 5,
+		FAULT_STATUS_OP_OFF   = 1U << 6,
+		FAULT_STATUS_HI_TEMP  = 1U << 7,
+		FAULT_STATUS_HV_OVP   = 1U << 8
+	};
+
+	class BIC2200_Packet
+	{
+	public:
+		uint32_t   addr;
+		CMD_OPCODE cmd;
+		std::vector<uint8_t> payload;
 	};
 
 	constexpr static uint32_t GET_HOST_TO_BIC_ADDR(const uint8_t bic_addr)
