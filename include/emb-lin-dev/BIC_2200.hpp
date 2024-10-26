@@ -75,7 +75,7 @@ public:
 		POWER_LAST = 0x02
 	};
 
-	struct SCALEING_FACTORS
+	struct SCALING_FACTORS
 	{
 		SCALE_FACTOR iin;
 		SCALE_FACTOR temp1;
