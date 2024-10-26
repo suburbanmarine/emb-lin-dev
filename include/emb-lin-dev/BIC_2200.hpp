@@ -146,7 +146,7 @@ public:
 	bool read_serial(std::string* const out_serial);
 
 	bool send_command(const BIC2200_Packet& packet);
-	bool wait_response(const std::chrono::microseconds& max_wait_time, BIC2200_Packet* const packet);
+	bool wait_response(const std::chrono::nanoseconds& max_wait_time, BIC2200_Packet* const packet);
 
 protected:
 
@@ -155,11 +155,11 @@ protected:
 	constexpr static std::chrono::milliseconds MIN_MARGIN_TIME    = std::chrono::milliseconds(5);
 
 	// max_wait_time is delay in addition to the delay needed to enforce MIN_REQUEST_PERIOD
-	bool wait_tx_can_packet(const std::chrono::microseconds& max_wait_time, const BIC2200_Packet& packet);
-	bool wait_tx_can_packet(const std::chrono::microseconds& max_wait_time, const can_frame& frame);
+	bool wait_tx_can_packet(const std::chrono::nanoseconds& max_wait_time, const BIC2200_Packet& packet);
+	bool wait_tx_can_packet(const std::chrono::nanoseconds& max_wait_time, const can_frame& frame);
 	
-	bool wait_rx_can_packet(const std::chrono::microseconds& max_wait_time, BIC2200_Packet* const out_packet);
-	bool wait_rx_can_packet(const std::chrono::microseconds& max_wait_time, can_frame* const out_frame);
+	bool wait_rx_can_packet(const std::chrono::nanoseconds& max_wait_time, BIC2200_Packet* const out_packet);
+	bool wait_rx_can_packet(const std::chrono::nanoseconds& max_wait_time, can_frame* const out_frame);
 
 	int m_fd;
 	Stopwatch m_tx_stopwatch;

@@ -212,7 +212,7 @@ bool BIC_2200::read_serial(std::string* const out_serial)
 	return true;
 }
 
-bool BIC_2200::wait_tx_can_packet(const std::chrono::microseconds& max_wait_time, const BIC2200_Packet& packet)
+bool BIC_2200::wait_tx_can_packet(const std::chrono::nanoseconds& max_wait_time, const BIC2200_Packet& packet)
 {
 	can_frame tx_frame;
 
@@ -224,7 +224,7 @@ bool BIC_2200::wait_tx_can_packet(const std::chrono::microseconds& max_wait_time
 	return wait_tx_can_packet(max_wait_time, tx_frame);
 }
 
-bool BIC_2200::wait_tx_can_packet(const std::chrono::microseconds& max_wait_time, const can_frame& tx_frame)
+bool BIC_2200::wait_tx_can_packet(const std::chrono::nanoseconds& max_wait_time, const can_frame& tx_frame)
 {
 	// Enforce max packet rate of MIN_REQUEST_PERIOD and adjust max_wait_ts
 	{
@@ -292,7 +292,7 @@ bool BIC_2200::wait_tx_can_packet(const std::chrono::microseconds& max_wait_time
 	return true;
 }
 
-bool BIC_2200::wait_rx_can_packet(const std::chrono::microseconds& max_wait_time, BIC2200_Packet* const out_packet)
+bool BIC_2200::wait_rx_can_packet(const std::chrono::nanoseconds& max_wait_time, BIC2200_Packet* const out_packet)
 {
 	can_frame rx_frame;
 	if( ! wait_rx_can_packet(max_wait_time, &rx_frame) )
@@ -308,7 +308,7 @@ bool BIC_2200::wait_rx_can_packet(const std::chrono::microseconds& max_wait_time
 	return true;
 }
 
-bool BIC_2200::wait_rx_can_packet(const std::chrono::microseconds& max_wait_time, can_frame* const out_rx_frame)
+bool BIC_2200::wait_rx_can_packet(const std::chrono::nanoseconds& max_wait_time, can_frame* const out_rx_frame)
 {
 	pollfd read_fds[] = {
 		{.fd = m_fd, .events = POLLIN}
