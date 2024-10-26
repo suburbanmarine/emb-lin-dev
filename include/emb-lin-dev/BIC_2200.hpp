@@ -143,7 +143,7 @@ public:
 	bool read_mf_id(std::string* const out_mf_id);
 	bool read_model(std::string* const out_model);
 	bool read_fw_rev(std::vector<std::string>* const out_fw_rev);
-	bool read_serial(std::string* const out_serial);
+	bool read_serial(std::string* const out_date, std::string* const out_serial);
 
 	bool send_command(const BIC2200_Packet& packet);
 	bool wait_response(const std::chrono::nanoseconds& max_wait_time, BIC2200_Packet* const packet);
