@@ -9,11 +9,18 @@
 
 #pragma once
 
+#include <linux/can.h>
+
+#include <chrono>
+#include <string>
+
+#include <cstdint>
+
 class BIC_2200
 {
 public:
 
-	enum class CMD_ID: uint16_t
+	enum class CMD_OPCODE: uint16_t
 	{
 		OPERATION            = 0x0000U, 
 		VOUT_SET             = 0x0020U,
@@ -42,6 +49,51 @@ public:
 		REVERSE_IOUT_SET     = 0x0130U,
 		BIDIRECTIONAL_CONFIG = 0x0140U
 	};
+
+	enum class SCALE_FACTOR: uint8_t
+	{
+		NOT_SUPPORTED = 0x00,
+		MILLI         = 0x04,
+		CENTI         = 0x05,
+		DECI          = 0x06,
+		ONE           = 0x07,
+		TEN           = 0x08,
+		HUNDRED       = 0x09
+	};
+
+	enum class EEP_CONFIG: uint8_t
+	{
+		IMMEDIATE    = 0x00,
+		DELAY_1_MIN  = 0x01,
+		DELAY_10_MIN = 0x02
+	};
+
+	enum class OP_INIT: uint8_t
+	{
+		POWER_OFF  = 0x00,
+		POWER_ON   = 0x01,
+		POWER_LAST = 0x02
+	};
+
+	struct SCALEING_FACTORS
+	{
+		SCALE_FACTOR iin;
+		SCALE_FACTOR temp1;
+		SCALE_FACTOR fan_speed;
+		SCALE_FACTOR vin;
+		SCALE_FACTOR iout;
+		SCALE_FACTOR vout;
+	};
+
+	constexpr static uint32_t GET_HOST_TO_BIC_ADDR(const uint8_t bic_addr)
+	{
+		return 0x000C0200U | bic_addr;
+	};
+	constexpr static uint32_t GET_BIC_TO_HOST_ADDR(const uint8_t bic_addr)
+	{
+		return 0x000C0300U | bic_addr;
+	};
+	constexpr static uint32_t HOST_BCAST_ADDR  = 0x00C03FF;
 
 	BIC_2200();
 	~BIC_2200();

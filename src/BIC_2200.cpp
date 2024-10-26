@@ -9,6 +9,21 @@
 
 #include "emb-lin-dev/BIC_2200.hpp"
 
+#include <emb-lin-util/Timespec_util.hpp>
+
+#include <signal.h>
+#include <poll.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <linux/can/raw.h>
+#include <linux/can/error.h>
+
+#include <array>
+
+#include <cstring>
+
 BIC_2200::BIC_2200()
 {
 	m_fd = -1;
@@ -18,7 +33,7 @@ BIC_2200::~BIC_2200()
 	close();
 }
 
-bool open(const std::string& iface)
+bool BIC_2200::open(const std::string& iface)
 {
 	if(m_fd >= 0)
 	{
@@ -61,25 +76,43 @@ bool open(const std::string& iface)
 
 	return true;
 }
-bool close()
+bool BIC_2200::close()
 {
 	if(m_fd < 0)
 	{
 		return true;
 	}
 
-	int ret = close(m_fd);
+	int ret = ::close(m_fd);
 	m_fd    = -1;
 
 	return ret == 0;
 }
 
 
-bool wait_tx_can_packet(const std::chrono::microseconds& max_wait_time, const can_frame& tx_frame)
+bool BIC_2200::wait_tx_can_packet(const std::chrono::microseconds& max_wait_time, const can_frame& tx_frame)
 {
-	//TODO: use epoll or poll to handle timeout for ability to enqueue frame
+	pollfd write_fds[] = {
+		{.fd = m_fd, .events = POLLOUT}
+	};
 
-	ssize_t len = write(m_fd, tx_frame, sizeof(can_frame));
+	timespec max_wait_ts = Timespec_util::from_chrono(max_wait_time);
+	sigset_t sigmask;
+	sigemptyset(&sigmask);
+
+	int ret = ppoll(write_fds, sizeof(write_fds) / sizeof(pollfd), &max_wait_ts, &sigmask);
+	if(ret < 0)
+	{
+		// TODO: log errno
+		return false;
+	}
+	else if(ret == 0)
+	{
+		// no space
+		return false;
+	}
+
+	ssize_t len = write(m_fd, &tx_frame, sizeof(can_frame));
 
 	if (len < 0)
 	{
@@ -96,9 +129,27 @@ bool wait_tx_can_packet(const std::chrono::microseconds& max_wait_time, const ca
 	return true;
 }
 
-bool wait_rx_can_packet(const std::chrono::microseconds& max_wait_time, can_frame* const out_rx_frame)
+bool BIC_2200::wait_rx_can_packet(const std::chrono::microseconds& max_wait_time, can_frame* const out_rx_frame)
 {
-	//TODO: use epoll or poll to handle timeout for new frame
+	pollfd read_fds[] = {
+		{.fd = m_fd, .events = POLLIN}
+	};
+
+	timespec max_wait_ts = Timespec_util::from_chrono(max_wait_time);
+	sigset_t sigmask;
+	sigemptyset(&sigmask);
+
+	int ret = ppoll(read_fds, sizeof(read_fds) / sizeof(pollfd), &max_wait_ts, &sigmask);
+	if(ret < 0)
+	{
+		// TODO: log errno
+		return false;
+	}
+	else if(ret == 0)
+	{
+		// no data
+		return false;
+	}
 
 	ssize_t len = read(m_fd, out_rx_frame, sizeof(can_frame));
 
