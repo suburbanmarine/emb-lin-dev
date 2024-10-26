@@ -13,6 +13,7 @@
 
 #include <chrono>
 #include <string>
+#include <vector>
 
 #include <cstdint>
 
@@ -103,9 +104,16 @@ public:
 	class BIC2200_Packet
 	{
 	public:
+		BIC2200_Packet()
+		{
+			payload.reserve(6);
+		}
+
 		uint32_t   addr;
 		CMD_OPCODE cmd;
-		std::vector<uint8_t> payload;
+		std::vector<uint8_t> payload; // up to 6 bytes of payload
+
+		bool to_can_frame(can_frame* const out_can_frame);
 	};
 
 	constexpr static uint32_t GET_HOST_TO_BIC_ADDR(const uint8_t bic_addr)
@@ -121,8 +129,13 @@ public:
 	BIC_2200();
 	~BIC_2200();
 
+	// eg iface == "can0"
 	bool open(const std::string& iface);
 	bool close();
+
+	bool send_command(const BIC2200_Packet& packet);
+	bool wait_response(const std::chrono::microseconds& max_wait_time, BIC2200_Packet* const packet);
+
 protected:
 
 	bool wait_tx_can_packet(const std::chrono::microseconds& max_wait_time, const can_frame& frame);
