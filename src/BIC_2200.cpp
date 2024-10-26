@@ -285,9 +285,12 @@ bool BIC_2200::read_fw_rev(std::vector<std::string>* const out_fw_rev)
 		out_fw_rev->reserve(cmd.payload.size());
 		for(size_t i = 0; i < cmd.payload.size(); i++)
 		{
-			int fw_major = int(cmd.payload[i]) / 10;
-			int fw_minor = int(cmd.payload[i]) % 10;
-			(*out_fw_rev)[i] = fmt::format("{:02d}.{:01d}", fw_major, fw_minor);
+			if(cmd.payload[i] != 0xFFU)
+			{
+				int fw_major = int(cmd.payload[i]) / 10;
+				int fw_minor = int(cmd.payload[i]) % 10;
+				(*out_fw_rev)[i] = fmt::format("{:02d}.{:01d}", fw_major, fw_minor);
+			}
 		}
 	}
 
