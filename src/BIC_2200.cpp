@@ -190,6 +190,11 @@ bool BIC_2200::read_mf_id(std::string* const out_mf_id)
 		return false;
 	}
 
+	if( (r0.payload.size() != 6) || (r1.payload.size() != 6) )
+	{
+		return false;
+	}
+
 	if(out_mf_id)
 	{
 		out_mf_id->clear();
@@ -233,6 +238,11 @@ bool BIC_2200::read_model(std::string* const out_model)
 		return false;
 	}
 
+	if( (r0.payload.size() != 6) || (r1.payload.size() != 6) )
+	{
+		return false;
+	}
+
 	if(out_model)
 	{
 		out_model->clear();
@@ -244,6 +254,43 @@ bool BIC_2200::read_model(std::string* const out_model)
 }
 bool BIC_2200::read_fw_rev(std::vector<std::string>* const out_fw_rev)
 {
+	BIC2200_Packet cmd;
+	cmd.addr = GET_HOST_TO_BIC_ADDR(0);
+	cmd.cmd  = CMD_OPCODE::MFR_REVISION_B0B5;
+
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	BIC2200_Packet r0;
+	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r0) )
+	{
+		return false;
+	}
+
+	if( (r0.cmd != CMD_OPCODE::MFR_REVISION_B0B5) )
+	{
+		return false;
+	}
+
+	if( (r0.payload.size() != 6) )
+	{
+		return false;
+	}
+
+	if(out_fw_rev)
+	{
+		out_fw_rev->clear()
+		out_fw_rev->reserve(cmd.payload.size());
+		for(size_t i = 0; i < cmd.payload.size(); i++)
+		{
+			int fw_major = int(cmd.payload[i]) / 10;
+			int fw_minor = int(cmd.payload[i]) % 10;
+			(*out_fw_rev)[i] = fmt::format("{:02d}.{:01d}", fw_major, fw_minor);
+		}
+	}
+
 	return true;
 }
 bool BIC_2200::read_serial(std::string* const out_date, std::string* const out_serial)
@@ -276,6 +323,11 @@ bool BIC_2200::read_serial(std::string* const out_date, std::string* const out_s
 	}
 
 	if( (r0.cmd != CMD_OPCODE::MFR_SERIAL_B0B5) || (r1.cmd != CMD_OPCODE::MFR_SERIAL_B6B11) )
+	{
+		return false;
+	}
+
+	if( (r0.payload.size() != 6) || (r1.payload.size() != 6) )
 	{
 		return false;
 	}
