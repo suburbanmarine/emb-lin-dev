@@ -233,11 +233,11 @@ bool BIC_2200::read_model(std::string* const out_model)
 		return false;
 	}
 
-	if(out_mf_id)
+	if(out_model)
 	{
-		out_mf_id->clear();
-		out_mf_id->insert(out_mf_id->end(), r0.payload.begin(), r0.payload.end());
-		out_mf_id->insert(out_mf_id->end(), r1.payload.begin(), r1.payload.end());
+		out_model->clear();
+		out_model->insert(out_model->end(), r0.payload.begin(), r0.payload.end());
+		out_model->insert(out_model->end(), r1.payload.begin(), r1.payload.end());
 	}
 
 	return true;
