@@ -176,6 +176,18 @@ public:
 	bool read_fw_rev(std::vector<std::string>* const out_fw_rev);
 	bool read_serial(std::string* const out_date, std::string* const out_serial);
 
+	// read state
+	bool read_ac_vin();
+	bool read_dc_vout();
+	bool read_dc_iout();
+
+	// set config
+	bool set_dc_charge_vout();
+	bool set_dc_charge_iout();
+
+	bool set_dc_discharge_vout();
+	bool set_dc_discharge_iout();
+
 	bool send_command(const BIC2200_Packet& packet);
 	bool wait_response(const std::chrono::nanoseconds& max_wait_time, BIC2200_Packet* const packet);
 
