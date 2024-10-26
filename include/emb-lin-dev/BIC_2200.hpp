@@ -143,6 +143,10 @@ public:
 		{
 			return is_bic_response() && is_bic_addr(bic_addr);
 		}
+		bool is_bic_response(const uint8_t bic_addr, const CMD_OPCODE bic_cmd) const
+		{
+			return is_bic_response() && is_bic_addr(bic_addr) && (cmd == bic_cmd);
+		}
 	};
 
 	constexpr static uint32_t GET_HOST_TO_BIC_ADDR(const uint8_t bic_addr)

@@ -20,6 +20,9 @@
 #include <linux/can/raw.h>
 #include <linux/can/error.h>
 
+#include <spdlog/spdlog.h>
+#include <fmt/format.h>
+
 #include <array>
 #include <thread>
 
@@ -185,12 +188,7 @@ bool BIC_2200::read_mf_id(std::string* const out_mf_id)
 		return false;
 	}
 
-	if( (!r0->is_bic_response(m_bic_addr)) || (!r1->is_bic_response(m_bic_addr)) )
-	{
-		return false;
-	}
-
-	if( (r0.cmd != CMD_OPCODE::MFR_ID_B0B5) || (r1.cmd != CMD_OPCODE::MFR_ID_B6B11) )
+	if( (!r0.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_ID_B0B5)) || (!r1.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_ID_B6B11)) )
 	{
 		return false;
 	}
@@ -238,12 +236,7 @@ bool BIC_2200::read_model(std::string* const out_model)
 		return false;
 	}
 
-	if( (!r0->is_bic_response(m_bic_addr)) || (!r1->is_bic_response(m_bic_addr)) )
-	{
-		return false;
-	}
-
-	if( (r0.cmd != CMD_OPCODE::MFR_MODEL_B0B5) || (r1.cmd != CMD_OPCODE::MFR_MODEL_B6B11) )
+	if( (!r0.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_MODEL_B0B5)) || (!r1.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_MODEL_B6B11)) )
 	{
 		return false;
 	}
@@ -279,12 +272,7 @@ bool BIC_2200::read_fw_rev(std::vector<std::string>* const out_fw_rev)
 		return false;
 	}
 
-	if( ! r0->is_bic_response(m_bic_addr) )
-	{
-		return false;
-	}
-
-	if( (r0.cmd != CMD_OPCODE::MFR_REVISION_B0B5) )
+	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_REVISION_B0B5) )
 	{
 		return false;
 	}
@@ -296,7 +284,7 @@ bool BIC_2200::read_fw_rev(std::vector<std::string>* const out_fw_rev)
 
 	if(out_fw_rev)
 	{
-		out_fw_rev->clear()
+		out_fw_rev->clear();
 		out_fw_rev->reserve(cmd.payload.size());
 		for(size_t i = 0; i < cmd.payload.size(); i++)
 		{
@@ -340,12 +328,7 @@ bool BIC_2200::read_serial(std::string* const out_date, std::string* const out_s
 		return false;
 	}
 
-	if( (!r0->is_bic_response(m_bic_addr)) || (!r1->is_bic_response(m_bic_addr)) )
-	{
-		return false;
-	}
-
-	if( (r0.cmd != CMD_OPCODE::MFR_SERIAL_B0B5) || (r1.cmd != CMD_OPCODE::MFR_SERIAL_B6B11) )
+	if( (!r0.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_SERIAL_B0B5)) || (!r1.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_SERIAL_B6B11)) )
 	{
 		return false;
 	}
