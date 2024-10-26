@@ -201,6 +201,45 @@ bool BIC_2200::read_mf_id(std::string* const out_mf_id)
 }
 bool BIC_2200::read_model(std::string* const out_model)
 {
+	BIC2200_Packet cmd;
+	cmd.addr = GET_HOST_TO_BIC_ADDR(0);
+	cmd.cmd  = CMD_OPCODE::MFR_MODEL_B0B5;
+
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	BIC2200_Packet r0;
+	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r0) )
+	{
+		return false;
+	}
+
+	cmd.cmd = CMD_OPCODE::MFR_MODEL_B6B11;
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	BIC2200_Packet r1;
+	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r1) )
+	{
+		return false;
+	}
+
+	if( (r0.cmd != CMD_OPCODE::MFR_MODEL_B0B5) || (r1.cmd != CMD_OPCODE::MFR_MODEL_B6B11) )
+	{
+		return false;
+	}
+
+	if(out_mf_id)
+	{
+		out_mf_id->clear();
+		out_mf_id->insert(out_mf_id->end(), r0.payload.begin(), r0.payload.end());
+		out_mf_id->insert(out_mf_id->end(), r1.payload.begin(), r1.payload.end());
+	}
+
 	return true;
 }
 bool BIC_2200::read_fw_rev(std::vector<std::string>* const out_fw_rev)
