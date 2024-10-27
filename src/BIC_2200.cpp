@@ -122,7 +122,7 @@ bool BIC_2200::open(const std::string& iface)
 		return false;
 	}
 
-	addr.can_family = AF_CAN;
+	addr.can_family  = AF_CAN;
 	addr.can_ifindex = ifr.ifr_ifindex;
 
 	ret = bind(m_fd, (sockaddr*)&addr, sizeof(addr));
@@ -137,6 +137,9 @@ bool BIC_2200::open(const std::string& iface)
 	{
 		return false;
 	}
+
+	// TODO: add iface up / down code using libnetlink or libmnl
+	// TODO: add iface bitrate code using libnetlink or libmnl
 
 	if( ! m_tx_stopwatch.start() )
 	{
@@ -353,6 +356,114 @@ bool BIC_2200::read_serial(std::string* const out_date, std::string* const out_s
 	return true;
 }
 
+bool BIC_2200::read_ac_vin(uint32_t* const out_vin_mv)
+{
+	BIC2200_Packet cmd;
+	cmd.addr = GET_HOST_TO_BIC_ADDR(m_bic_addr);
+	cmd.cmd  = CMD_OPCODE::READ_VIN;
+
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	BIC2200_Packet r0;
+	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r0) )
+	{
+		return false;
+	}
+
+	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::READ_VIN) )
+	{
+		return false;
+	}
+
+	if( r0.payload.size() != 2 )
+	{
+		return false;
+	}
+
+	if(out_vin_mv)
+	{
+		uint32_t temp = (uint32_t(r0.payload[0]) << 0) | (uint32_t(r0.payload[1]) << 8);
+		temp *= 100; // go from dV to mV, TODO: dynamically use SCALING_FACTOR discovered?
+		*out_vin_mv = temp;
+	}
+
+	return true;
+}
+bool BIC_2200::read_dc_vout(uint32_t* const out_vout_mv)
+{
+	BIC2200_Packet cmd;
+	cmd.addr = GET_HOST_TO_BIC_ADDR(m_bic_addr);
+	cmd.cmd  = CMD_OPCODE::READ_VOUT;
+
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	BIC2200_Packet r0;
+	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r0) )
+	{
+		return false;
+	}
+
+	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::READ_VOUT) )
+	{
+		return false;
+	}
+
+	if( r0.payload.size() != 2 )
+	{
+		return false;
+	}
+
+	if(out_vout_mv)
+	{
+		uint32_t temp = (uint32_t(r0.payload[0]) << 0) | (uint32_t(r0.payload[1]) << 8);
+		temp *= 10; // go from cV to mV, TODO: dynamically use SCALING_FACTOR discovered?
+		*out_vout_mv = temp;
+	}
+
+	return true;
+}
+bool BIC_2200::read_dc_iout(uint32_t* const out_iout_ma)
+{
+	BIC2200_Packet cmd;
+	cmd.addr = GET_HOST_TO_BIC_ADDR(m_bic_addr);
+	cmd.cmd  = CMD_OPCODE::READ_IOUT;
+
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	BIC2200_Packet r0;
+	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r0) )
+	{
+		return false;
+	}
+
+	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::READ_IOUT) )
+	{
+		return false;
+	}
+
+	if( r0.payload.size() != 2 )
+	{
+		return false;
+	}
+
+	if(out_iout_ma)
+	{
+		uint32_t temp = (uint32_t(r0.payload[0]) << 0) | (uint32_t(r0.payload[1]) << 8);
+		temp *= 10; // go from cA to mA, TODO: dynamically use SCALING_FACTOR discovered?
+		*out_iout_ma = temp;
+	}
+
+	return true;
+}
 bool BIC_2200::set_system_config(const bool eep_disable, const EEP_CONFIG eep_config, const OP_INIT op_init, const bool can_enable)
 {
 	uint16_t reg = 0;

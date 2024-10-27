@@ -182,17 +182,18 @@ public:
 	bool open(const std::string& iface);
 	bool close();
 
+	// read metadata
 	bool read_mf_id(std::string* const out_mf_id);
 	bool read_model(std::string* const out_model);
 	bool read_fw_rev(std::vector<std::string>* const out_fw_rev);
 	bool read_serial(std::string* const out_date, std::string* const out_serial);
 
 	// read state
-	bool read_ac_vin(uint32_t* const vin_mv);
-	bool read_dc_vout(uint32_t* const vout_mv);
-	bool read_dc_iout(uint32_t* const iout_ma);
-	bool read_system_status();
-	bool read_fault_status();
+	bool read_ac_vin(uint32_t* const out_vin_mv);
+	bool read_dc_vout(uint32_t* const out_vout_mv);
+	bool read_dc_iout(uint32_t* const out_iout_ma);
+	bool read_system_status(uint16_t* const out_reg);
+	bool read_fault_status(uint16_t* const out_reg);
 
 	// set config
 	bool set_dc_charge_vout(const uint32_t vout_mv);
@@ -203,6 +204,8 @@ public:
 
 	bool set_system_config(const bool eep_disable, const EEP_CONFIG eep_config, const OP_INIT op_init, const bool can_enable);
 	bool set_bidr_config(const bool nAUTO_MANUAL);
+
+	// control regen manually, if can_enable == true and nAUTO_MANUAL == true
 	bool set_dir_control(const bool nACTODC_DCTOAC);
 
 protected:
