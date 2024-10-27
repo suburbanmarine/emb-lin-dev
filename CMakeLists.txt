@@ -32,6 +32,7 @@ add_library(emb-lin-dev
 	src/MCP23X17.cpp
 	src/PCA9544A.cpp
 	src/PCA9544A_bus.cpp
+	src/Victron_modbus_tcp.cpp
 
 	src/max38615_spidev.cpp
 	src/RTD_util.cpp
