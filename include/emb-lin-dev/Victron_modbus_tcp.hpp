@@ -54,7 +54,8 @@ public:
 		std::string path;
 		int address;
 		RegisterType type;
-		int scalefactor; // Power of 10
+		std::pair<int, int> scalefactor; // Power of 10
+		bool writable;
 	};
 
 	// enum class REGISTER_ID : uint8_t
@@ -101,4 +102,6 @@ public:
 		constexpr static uint16_t MBAP_HDR_LEN        = 7;
 		constexpr static uint16_t MBAP_PACKET_MIN_LEN = 10;
 	};
+
+	const static std::map<std::string, VictronModbusTcpRegister> VICTRON_REG_MAP;
 };
