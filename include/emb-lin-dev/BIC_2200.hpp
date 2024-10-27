@@ -103,6 +103,17 @@ public:
 		FAULT_STATUS_HV_OVP   = 1U << 8
 	};
 
+	// SYSTEM_STATUS (0x00C1) bitmask values
+	enum class SYSTEM_STATUS_BITMASK : uint16_t
+	{
+		nSLAVE_MASTER = 1U << 0,
+		DC_OK         = 1U << 1,
+		PFC_OK        = 1U << 2,
+		ADL_ON        = 1U << 3,
+		INITIALIZING  = 1U << 4,
+		EEPROM_ERROR  = 1U << 5
+	};
+
 	class BIC2200_Packet
 	{
 	public:
@@ -177,19 +188,22 @@ public:
 	bool read_serial(std::string* const out_date, std::string* const out_serial);
 
 	// read state
-	bool read_ac_vin();
-	bool read_dc_vout();
-	bool read_dc_iout();
+	bool read_ac_vin(uint32_t* const vin_mv);
+	bool read_dc_vout(uint32_t* const vout_mv);
+	bool read_dc_iout(uint32_t* const iout_ma);
+	bool read_system_status();
+	bool read_fault_status();
 
 	// set config
-	bool set_dc_charge_vout();
-	bool set_dc_charge_iout();
+	bool set_dc_charge_vout(const uint32_t vout_mv);
+	bool set_dc_charge_iout(const uint32_t iout_ma);
 
-	bool set_dc_discharge_vout();
-	bool set_dc_discharge_iout();
+	bool set_dc_discharge_vout(const uint32_t vout_mv);
+	bool set_dc_discharge_iout(const uint32_t iout_ma);
 
-	bool send_command(const BIC2200_Packet& packet);
-	bool wait_response(const std::chrono::nanoseconds& max_wait_time, BIC2200_Packet* const packet);
+	bool set_system_config(const bool eep_disable, const EEP_CONFIG eep_config, const OP_INIT op_init, const bool can_enable);
+	bool set_bidr_config(const bool nAUTO_MANUAL);
+	bool set_dir_control(const bool nACTODC_DCTOAC);
 
 protected:
 

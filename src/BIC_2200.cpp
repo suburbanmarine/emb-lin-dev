@@ -353,6 +353,83 @@ bool BIC_2200::read_serial(std::string* const out_date, std::string* const out_s
 	return true;
 }
 
+bool BIC_2200::set_system_config(const bool eep_disable, const EEP_CONFIG eep_config, const OP_INIT op_init, const bool can_enable)
+{
+	uint16_t reg = 0;
+
+	if(eep_disable)
+	{
+		reg |= 0x4000U;
+	}
+
+	reg |= (uint16_t(eep_config) & 0x0003U) << 8;
+	reg |= (uint16_t(op_init)    & 0x0003U) << 1;
+
+	if(can_enable)
+	{
+		reg |= 0x0001U;
+	}
+
+	BIC2200_Packet cmd;
+	cmd.addr = GET_HOST_TO_BIC_ADDR(m_bic_addr);
+	cmd.cmd  = CMD_OPCODE::SYSTEM_CONFIG;
+	cmd.payload.resize(2);
+	cmd.payload[0] = (reg & 0x00FFU) >> 0;
+	cmd.payload[1] = (reg & 0xFF00U) >> 8;
+
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	return true;
+}
+bool BIC_2200::set_bidr_config(const bool nAUTO_MANUAL)
+{
+	uint16_t reg = 0;
+
+	if(nAUTO_MANUAL)
+	{
+		reg |= 0x0001U;
+	}
+
+	BIC2200_Packet cmd;
+	cmd.addr = GET_HOST_TO_BIC_ADDR(m_bic_addr);
+	cmd.cmd  = CMD_OPCODE::BIDIRECTIONAL_CONFIG;
+	cmd.payload.resize(2);
+	cmd.payload[0] = (reg & 0x00FFU) >> 0;
+	cmd.payload[1] = (reg & 0xFF00U) >> 8;
+
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	return true;
+}
+bool BIC_2200::set_dir_control(const bool nACTODC_DCTOAC)
+{
+	uint8_t reg = 0;
+
+	if(nACTODC_DCTOAC)
+	{
+		reg |= 0x01U;
+	}
+
+	BIC2200_Packet cmd;
+	cmd.addr = GET_HOST_TO_BIC_ADDR(m_bic_addr);
+	cmd.cmd  = CMD_OPCODE::DIRECTION_CTRL;
+	cmd.payload.resize(1);
+	cmd.payload[0] = (reg & 0x00FFU) >> 0;
+
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool BIC_2200::wait_tx_can_packet(const std::chrono::nanoseconds& max_wait_time, const BIC2200_Packet& packet)
 {
 	can_frame tx_frame;
