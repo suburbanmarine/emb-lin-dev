@@ -582,6 +582,8 @@ bool BIC_2200::wait_tx_can_packet(const std::chrono::nanoseconds& max_wait_time,
 
 bool BIC_2200::wait_tx_can_packet(const std::chrono::nanoseconds& max_wait_time, const can_frame& tx_frame)
 {
+	// TODO: do we also need to enforce MIN_MARGIN_TIME?
+
 	// Enforce max packet rate of MIN_REQUEST_PERIOD and adjust max_wait_ts
 	{
 		bool is_exp;
