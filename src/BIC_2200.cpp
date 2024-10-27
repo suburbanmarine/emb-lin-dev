@@ -69,12 +69,12 @@ bool BIC_2200::BIC2200_Packet::from_can_frame(const can_frame& frame)
 		return false;
 	}
 
-	if( (addr & CAN_RTR_FLAG) == 0)
+	if( (addr & CAN_RTR_FLAG) != 0)
 	{
 		return false;
 	}
 
-	if( (addr & CAN_ERR_FLAG) == 0)
+	if( (addr & CAN_ERR_FLAG) != 0)
 	{
 		return false;
 	}
