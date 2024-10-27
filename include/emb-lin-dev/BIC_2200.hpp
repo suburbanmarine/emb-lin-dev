@@ -161,7 +161,11 @@ public:
 		}
 		bool is_bic_response(const uint8_t bic_addr, const CMD_OPCODE bic_cmd) const
 		{
-			return is_bic_response() && is_bic_addr(bic_addr) && (cmd == bic_cmd);
+			return is_bic_response(bic_addr) && (cmd == bic_cmd);
+		}
+		bool is_bic_response(const uint8_t bic_addr, const CMD_OPCODE bic_cmd, const size_t len) const
+		{
+			return is_bic_response(bic_addr, bic_cmd) && (payload.size() == len);
 		}
 	};
 

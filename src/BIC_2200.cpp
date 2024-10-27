@@ -191,12 +191,7 @@ bool BIC_2200::read_mf_id(std::string* const out_mf_id)
 		return false;
 	}
 
-	if( (!r0.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_ID_B0B5)) || (!r1.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_ID_B6B11)) )
-	{
-		return false;
-	}
-
-	if( (r0.payload.size() != 6) || (r1.payload.size() != 6) )
+	if( (!r0.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_ID_B0B5, 6)) || (!r1.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_ID_B6B11, 6)) )
 	{
 		return false;
 	}
@@ -239,12 +234,7 @@ bool BIC_2200::read_model(std::string* const out_model)
 		return false;
 	}
 
-	if( (!r0.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_MODEL_B0B5)) || (!r1.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_MODEL_B6B11)) )
-	{
-		return false;
-	}
-
-	if( (r0.payload.size() != 6) || (r1.payload.size() != 6) )
+	if( (!r0.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_MODEL_B0B5, 6)) || (!r1.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_MODEL_B6B11, 6)) )
 	{
 		return false;
 	}
@@ -275,12 +265,7 @@ bool BIC_2200::read_fw_rev(std::vector<std::string>* const out_fw_rev)
 		return false;
 	}
 
-	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_REVISION_B0B5) )
-	{
-		return false;
-	}
-
-	if( (r0.payload.size() != 6) )
+	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_REVISION_B0B5, 6) )
 	{
 		return false;
 	}
@@ -331,12 +316,7 @@ bool BIC_2200::read_serial(std::string* const out_date, std::string* const out_s
 		return false;
 	}
 
-	if( (!r0.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_SERIAL_B0B5)) || (!r1.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_SERIAL_B6B11)) )
-	{
-		return false;
-	}
-
-	if( (r0.payload.size() != 6) || (r1.payload.size() != 6) )
+	if( (!r0.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_SERIAL_B0B5, 6)) || (!r1.is_bic_response(m_bic_addr, CMD_OPCODE::MFR_SERIAL_B6B11, 6)) )
 	{
 		return false;
 	}
@@ -373,12 +353,7 @@ bool BIC_2200::read_ac_vin(uint32_t* const out_vin_mv)
 		return false;
 	}
 
-	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::READ_VIN) )
-	{
-		return false;
-	}
-
-	if( r0.payload.size() != 2 )
+	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::READ_VIN, 2) )
 	{
 		return false;
 	}
@@ -409,12 +384,7 @@ bool BIC_2200::read_dc_vout(uint32_t* const out_vout_mv)
 		return false;
 	}
 
-	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::READ_VOUT) )
-	{
-		return false;
-	}
-
-	if( r0.payload.size() != 2 )
+	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::READ_VOUT, 2) )
 	{
 		return false;
 	}
@@ -445,12 +415,7 @@ bool BIC_2200::read_dc_iout(uint32_t* const out_iout_ma)
 		return false;
 	}
 
-	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::READ_IOUT) )
-	{
-		return false;
-	}
-
-	if( r0.payload.size() != 2 )
+	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::READ_IOUT, 2) )
 	{
 		return false;
 	}
@@ -464,6 +429,68 @@ bool BIC_2200::read_dc_iout(uint32_t* const out_iout_ma)
 
 	return true;
 }
+
+bool BIC_2200::read_system_status(uint16_t* const out_reg)
+{
+	BIC2200_Packet cmd;
+	cmd.addr = GET_HOST_TO_BIC_ADDR(m_bic_addr);
+	cmd.cmd  = CMD_OPCODE::SYSTEM_STATUS;
+
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	BIC2200_Packet r0;
+	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r0) )
+	{
+		return false;
+	}
+
+	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::SYSTEM_STATUS, 2) )
+	{
+		return false;
+	}
+
+	if(out_reg)
+	{
+		uint16_t temp = (uint16_t(r0.payload[0]) << 0) | (uint16_t(r0.payload[1]) << 8);
+		*out_reg = temp;
+	}
+
+	return true;
+}
+bool BIC_2200::read_fault_status(uint16_t* const out_reg)
+{
+	BIC2200_Packet cmd;
+	cmd.addr = GET_HOST_TO_BIC_ADDR(m_bic_addr);
+	cmd.cmd  = CMD_OPCODE::FAULT_STATUS;
+
+	if( ! wait_tx_can_packet(std::chrono::milliseconds(10), cmd) )
+	{
+		return false;
+	}
+
+	BIC2200_Packet r0;
+	if( ! wait_rx_can_packet(std::chrono::milliseconds(MAX_RESPONSE_TIME) * 3, &r0) )
+	{
+		return false;
+	}
+
+	if( ! r0.is_bic_response(m_bic_addr, CMD_OPCODE::FAULT_STATUS, 2) )
+	{
+		return false;
+	}
+
+	if(out_reg)
+	{
+		uint16_t temp = (uint16_t(r0.payload[0]) << 0) | (uint16_t(r0.payload[1]) << 8);
+		*out_reg = temp;
+	}
+
+	return true;
+}
+
 bool BIC_2200::set_system_config(const bool eep_disable, const EEP_CONFIG eep_config, const OP_INIT op_init, const bool can_enable)
 {
 	uint16_t reg = 0;
