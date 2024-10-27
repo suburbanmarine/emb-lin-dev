@@ -11,6 +11,9 @@
 
 #include <emb-lin-util/Timespec_util.hpp>
 
+#include <spdlog/spdlog.h>
+#include <fmt/format.h>
+
 #include <signal.h>
 #include <poll.h>
 #include <sys/types.h>
@@ -19,9 +22,6 @@
 #include <net/if.h>
 #include <linux/can/raw.h>
 #include <linux/can/error.h>
-
-#include <spdlog/spdlog.h>
-#include <fmt/format.h>
 
 #include <array>
 #include <thread>

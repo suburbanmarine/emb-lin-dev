@@ -9,8 +9,16 @@
 
 #include "emb-lin-dev/Victron_modbus_tcp.hpp"
 
+#include <spdlog/spdlog.h>
+#include <fmt/format.h>
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 #include <cstring>
 
+// TODO: maybe just directly read the spreadsheet, or have a script dump the spreadsheet here
 const std::map<std::string, Victron_modbus_tcp::VictronModbusTcpRegister> Victron_modbus_tcp::VICTRON_REG_MAP = 
 {
 	{ "/Serial",                      {.path = "/Serial",                      .address =   800, .type = Victron_modbus_tcp::RegisterType::STRING, .scalefactor = std::make_pair(0, 0),   .writable = false} },
@@ -114,5 +122,162 @@ bool Victron_modbus_tcp::Modbus_tcp_frame::deserialize(const std::vector<uint8_t
 	payload.resize(length - 4);
 	memcpy(payload.data(), frame.data()+8, payload.size());
 
+	return true;
+}
+
+Victron_modbus_tcp::Victron_modbus_tcp() : req_id(0)
+{
+	
+}
+Victron_modbus_tcp::~Victron_modbus_tcp()
+{
+	close();
+}
+
+bool Victron_modbus_tcp::open(const std::string& server)
+{
+	m_fd.reset();
+
+	addrinfo* getaddrinfo_result;
+
+	addrinfo hints;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_flags    = 0;
+	hints.ai_family   = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
+	int ret = getaddrinfo(server.c_str(), fmt::format("{:d}", TCP_PORT).c_str(), &hints, &getaddrinfo_result);
+	if(ret < 0)
+	{
+		return false;
+	}
+
+	for(addrinfo* a = getaddrinfo_result; a != nullptr; a = a->ai_next)
+	{
+		// m_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		// if(m_fd < 0)
+		// {
+		// 	return false;
+		// }
+		int temp_fd = socket(a->ai_family, a->ai_socktype, a->ai_protocol);
+		if(m_fd < 0)
+		{
+			continue;
+		}
+
+		std::shared_ptr<Socket_fd> sock = std::make_shared<Socket_fd>(temp_fd);
+		ret = connect(temp_fd, a->ai_addr, a->ai_addrlen);
+		if(ret < 0)
+		{
+			continue;
+		}
+		else
+		{
+			m_fd = sock;
+			break;
+		}
+	}
+
+	return m_fd != nullptr;
+}
+bool Victron_modbus_tcp::close()
+{
+	m_fd.reset();
+	return true;
+}
+
+bool Victron_modbus_tcp::read_serial(std::string* const out_serial)
+{
+	if( ! m_fd )
+	{
+		return false;
+	}
+	auto reg_info = VICTRON_REG_MAP.find("/Serial");
+	if(reg_info == VICTRON_REG_MAP.end())
+	{
+		return false;
+	}
+
+	Modbus_tcp_frame frame;
+	frame.trx_id    = req_id++;
+	frame.unit_id   = 100;
+	frame.func_code = uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS);
+	frame.reg_id    = reg_info->second.address;
+
+	std::vector<uint8_t> buf;
+	if( ! frame.serialize(&buf) )
+	{
+		return false;
+	}
+
+	if( ! write_buf(buf) )
+	{
+		return false;
+	}
+
+	if( ! read_buf(6, &buf) )
+	{
+		return false;
+	}
+
+	Modbus_tcp_frame resp_frame;
+	if( ! resp_frame.deserialize(buf) )
+	{
+		return false;
+	}
+
+	if( ! resp_frame.is_frame_response_for(frame) )
+	{
+		return false;
+	}
+
+	if(out_serial)
+	{
+		out_serial->clear();
+		out_serial->insert(out_serial->end(), resp_frame.payload.begin(), resp_frame.payload.end());
+	}
+
+	return true;
+}
+
+bool Victron_modbus_tcp::write_buf(const std::vector<uint8_t>& buf)
+{
+	size_t num_written = 0;
+	do
+	{
+		const ssize_t num_to_write = buf.size() - num_written;
+		const ssize_t ret = write(m_fd->get_fd(), buf.data() + num_written, num_to_write);
+		if( ret < 0 )
+		{
+			m_fd.reset();
+			return false;
+		}
+
+		num_written += ret;
+	} while(num_written != buf.size());
+	
+	return true;
+}
+
+bool Victron_modbus_tcp::read_buf(const size_t payload_len, std::vector<uint8_t>* const buf)
+{
+	const ssize_t TOTAL_LEN = payload_len + 10;
+	ssize_t num_read = 0;
+
+	buf->resize(TOTAL_LEN);
+
+	do
+	{
+		const ssize_t num_to_read = TOTAL_LEN - num_read;
+		const ssize_t ret = read(m_fd->get_fd(), buf->data() + num_read, num_to_read);
+		if( ret < 0 )
+		{
+			m_fd.reset();
+			return false;
+		}
+
+		num_read += ret;
+	} while(num_read != TOTAL_LEN);
+	
 	return true;
 }
