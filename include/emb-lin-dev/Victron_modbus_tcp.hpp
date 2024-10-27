@@ -9,6 +9,10 @@
 
 #pragma once 
 
+#include <string>
+#include <map>
+#include <vector>
+
 #include <cstdint>
 
 class Victron_modbus_tcp
@@ -34,12 +38,67 @@ public:
 		GATEWAY_TARGET_DEVICE_FAILED_TO_RESPOND = 0x0BU
 	};
 
-	enum class REGISTER_ID : uint8_t
+	enum class RegisterType
 	{
-		AcPowerSetpointL1 = 37,
-		AcPowerSetpointL2 = 40,
-		AcPowerSetpointL3 = 41,
-		DisableCharge     = 38,
-		DisableFeedIn     = 39
-	}
+		INT8,
+		INT16,
+		INT32,
+		UINT8,
+		UINT16,
+		UINT32,
+		STRING
+	};
+
+	struct VictronModbusTcpRegister
+	{
+		std::string path;
+		int address;
+		RegisterType type;
+		int scalefactor; // Power of 10
+	};
+
+	// enum class REGISTER_ID : uint8_t
+	// {
+	// 	Serial                 = 0,
+	// 	AcPowerSetpointL1      = 37,
+	// 	AcPowerSetpointL2      = 40,
+	// 	AcPowerSetpointL3      = 41,
+	// 	DisableCharge          = 38,
+	// 	DisableFeedIn          = 39,
+	// 	DoNotFeedInOvervoltage = 65,
+	// 	MaxFeedInPowerL1       = 66,
+	// 	MaxFeedInPowerL2       = 67,
+	// 	MaxFeedInPowerL3       = 68,
+	// 	TargetPowerIsMaxFeedIn = 71,
+	// 	FixSolarOffsetTo100mV  = 72
+	// 	ESSMode
+	// };
+
+	constexpr static uint16_t TCP_PORT = 502U;
+
+	class Modbus_tcp_frame
+	{
+	public:
+		Modbus_tcp_frame()
+		{
+			protocol_id = 0;
+		}
+		~Modbus_tcp_frame();
+
+		// MODBUS Application Protocol (MBAP) header
+		uint16_t trx_id; // will be returned by the server, increment it
+		uint16_t protocol_id;
+		// uint16_t length; // length of unit_id + func_code + reg_id + payload
+		uint8_t unit_id;
+		// Protocol Data Unit (PDU)
+		uint8_t func_code;
+		uint16_t reg_id;
+		std::vector<uint8_t> payload;
+
+		bool serialize(std::vector<uint8_t>* const out_frame);
+		bool deserialize(const std::vector<uint8_t>& frame);
+
+		constexpr static uint16_t MBAP_HDR_LEN        = 7;
+		constexpr static uint16_t MBAP_PACKET_MIN_LEN = 10;
+	};
 };
