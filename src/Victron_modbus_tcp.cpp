@@ -13,8 +13,8 @@
 
 const static std::map<std::string, Victron_modbus_tcp::VictronModbusTcpRegister> VICTRON_REG_MAP = 
 {
-	{ "/Serial", {.path = "/Serial", .address = 800, .type = Victron_modbus_tcp::RegisterType::STRING, .scalefactor = 0} },
-	{ "/Hub4/L1/AcPowerSetpoint", {.path = "/Hub4/L1/AcPowerSetpoint", .address = 37, .type = Victron_modbus_tcp::RegisterType::INT16, .scalefactor = 1} }
+	{ "/Serial", {.path = "/Serial", .address = 800, .type = Victron_modbus_tcp::RegisterType::STRING, .scalefactor = 0, .writable = false} },
+	{ "/Hub4/L1/AcPowerSetpoint", {.path = "/Hub4/L1/AcPowerSetpoint", .address = 37, .type = Victron_modbus_tcp::RegisterType::INT16, .scalefactor = 1, .writable = true} }
 };
 
 bool Victron_modbus_tcp::Modbus_tcp_frame::serialize(std::vector<uint8_t>* const out_frame)
