@@ -51,6 +51,16 @@ public:
 		STRING
 	};
 
+	enum class CERBO_GX_UNIT_ID : uint8_t
+	{
+		VECAN     = 0,
+		VEDIRECT3 = 223,
+		VEDIRECT2 = 224,
+		BMSCAN    = 225,
+		VEDIRECT1 = 226,
+		VEBUS     = 227
+	};
+
 	struct VictronModbusTcpRegister
 	{
 		std::string path;
