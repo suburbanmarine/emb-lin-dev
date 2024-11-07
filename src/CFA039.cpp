@@ -31,7 +31,7 @@ bool CFA039::send_image_argb8888(const uint16_t x, const uint16_t y, const uint8
 		get_lsb(x), get_msb(x),
 		get_lsb(y), get_msb(y),
 		z,
-		0,
+		uint8_t(TOUCH_REPORTING_OPTION::OFF),
 		uint8_t(IMAGE_FORMAT::ARGB8888),
 		get_lsb(width), get_msb(width),
 		get_lsb(height), get_msb(height),

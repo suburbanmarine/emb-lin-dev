@@ -100,5 +100,13 @@ public:
 		FILE     = 0x05
 	};
 
+	enum class TOUCH_REPORTING_OPTION : uint8_t
+	{
+		OFF                       = 0x00,
+		SINGLE_TOUCH_RELEASE      = 0x01,
+		SINGLE_TOUCH_RELEASE_DRAG = 0x02,
+		MULTIPLE                  = 0x03
+	};
+
 	bool send_image_argb8888(const uint16_t x, const uint16_t y, const uint8_t z, std::vector<uint8_t>& img_argb8888, const size_t width, const size_t height);
 };
