@@ -11,146 +11,18 @@
 
 #include "emb-lin-dev/CFA835.hpp"
 
-#include <boost/crc.hpp>
-
 #include <spdlog/spdlog.h>
-
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <termios.h>
 
 #include <cstring>
 
 CFA835::CFA835()
 {
-	m_fd = -1;
+	
 }
 
 CFA835::~CFA835()
 {
-	close();
-}
-
-bool CFA835::CFA835_Packet::serialize(std::vector<uint8_t>* out_buf) const
-{
-	if(data.size() > 255)
-	{
-		SPDLOG_WARN("CFA835_Packet::serialize: payload too large");
-		return false;
-	}
-
-	out_buf->clear();
-	out_buf->reserve(1+1+data.size()+2);
-	out_buf->push_back(cmd);
-	out_buf->push_back(data.size() & 0xFF);
-	out_buf->insert(out_buf->end(), data.begin(), data.end());
-	out_buf->push_back((crc >> 0) & 0xFFU);
-	out_buf->push_back((crc >> 8) & 0xFFU);
-	return true;
-}
-bool CFA835::CFA835_Packet::deserialize(const std::vector<uint8_t>& buf)
-{
-	if(buf.size() < 4)
-	{
-		SPDLOG_WARN("CFA835_Packet::deserialize: buf too small");
-		return false;
-	}
 	
-	cmd        = buf[0];
-	size_t len = buf[1];
-	if(len != (buf.size()-4))
-	{
-		SPDLOG_WARN("CFA835_Packet::deserialize: len mismatch");
-		return false;
-	}
-
-	data.clear();
-	data.reserve(len);
-	data.insert(data.end(), std::next(buf.begin(), 2), std::prev(buf.end(), 2));
-	
-	crc = (uint16_t(buf[buf.size()-1]) << 8) | (uint16_t(buf[buf.size()-2]) << 0);
-
-	if(calc_crc() != crc)
-	{
-		SPDLOG_WARN("CFA835::wait_for_packet: crc mismatch");
-		return false;
-	}
-
-	return true;
-}
-
-// uint16_t CFA835::CFA835_Packet::calc_crc() const
-// {
-// 	// crc_ccitt_true_t but with 0xFFFF initial value and output ones complement
-// 	boost::crc_optimal<16, 0x1021, 0xFFFF, 0x0000, true, true> crcgen; 
-
-// 	crcgen.process_byte(cmd);
-// 	crcgen.process_byte(data.size() & 0xFF);
-// 	crcgen.process_block(data.data(), data.data()+data.size());
-// 	return ~crcgen.checksum();
-// }
-
-uint16_t CFA835::CFA835_Packet::calc_crc() const
-{
-	// crc_ccitt_true_t but with 0xFFFF initial value and output ones complement
-	boost::crc_optimal<16, 0x1021, 0xFFFF, 0xFFFF, true, true> crcgen; 
-
-	crcgen.process_byte(cmd);
-	crcgen.process_byte(data.size() & 0xFF);
-	crcgen.process_block(data.data(), data.data()+data.size());
-	return crcgen.checksum();
-}
-
-bool CFA835::open(const std::string& path)
-{
-	errno = 0;
-
-	int fd = ::open(path.c_str(), O_RDWR);
-	if(fd < 0)
-	{
-		SPDLOG_ERROR("Failed to open {:s}, errno: {:d}", path, errno);
-		return false;
-	}
-	
-	m_fd = fd;
-
-	termios options;
-	memset(&options, 0, sizeof(options));
-
-	tcgetattr(m_fd, &options);
-	cfmakeraw(&options);
-	cfsetispeed(&options, B115200);
-	cfsetospeed(&options, B115200);
-	options.c_cc[VMIN]  = 0;  // return on first byte
-	options.c_cc[VTIME] = 20; // 2 second timeout
-	tcsetattr(m_fd, TCSANOW, &options);
-
-	return true;
-}
-bool CFA835::close()
-{
-	if(m_fd >= 0)
-	{
-		::close(m_fd);
-		m_fd = -1;
-	}
-	return true;
-}
-bool CFA835::sync()
-{
-	if(0 != tcflush(m_fd, TCIOFLUSH) )
-	{
-		return false;
-	}
-
-	CFA835::CFA835_Packet packet;
-	while( wait_for_packet(&packet, PACKET_TIMEOUT) )
-	{
-
-	}
-
-	return true;
 }
 
 bool CFA835::send_ping(const std::string& msg)
@@ -160,8 +32,8 @@ bool CFA835::send_ping(const std::string& msg)
 		return false;
 	}
 
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::PING);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::PING);
 	packet.data.insert(packet.data.end(), msg.begin(), msg.end());
 	packet.crc  = packet.calc_crc();
 	
@@ -177,7 +49,7 @@ bool CFA835::send_ping(const std::string& msg)
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::PING)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::PING)) )
 	{
 		return false;
 	}
@@ -191,8 +63,8 @@ bool CFA835::send_ping(const std::string& msg)
 }
 bool CFA835::get_module_info(const bool serial_nversion, std::string* const out_info)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::GET_MODULE_INFO);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::GET_MODULE_INFO);
 	packet.data = {{uint8_t(serial_nversion)}};
 	packet.crc  = packet.calc_crc();
 	
@@ -208,7 +80,7 @@ bool CFA835::get_module_info(const bool serial_nversion, std::string* const out_
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GET_MODULE_INFO)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::GET_MODULE_INFO)) )
 	{
 		return false;
 	}
@@ -221,8 +93,8 @@ bool CFA835::get_module_info(const bool serial_nversion, std::string* const out_
 
 bool CFA835::set_brightness(const uint8_t display_percent, const uint8_t keypad_percent)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::DISPLAY_KEYPAD_BACKLIGHT);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::DISPLAY_KEYPAD_BACKLIGHT);
 	packet.data = {{display_percent, keypad_percent}};
 	packet.crc  = packet.calc_crc();
 	
@@ -238,7 +110,7 @@ bool CFA835::set_brightness(const uint8_t display_percent, const uint8_t keypad_
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::DISPLAY_KEYPAD_BACKLIGHT)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::DISPLAY_KEYPAD_BACKLIGHT)) )
 	{
 		return false;
 	}
@@ -253,8 +125,8 @@ bool CFA835::write_user_flash(const std::vector<uint8_t>& data)
 		return false;
 	}
 
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::WRITE_USER_FLASH);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::WRITE_USER_FLASH);
 	packet.data = data;
 	packet.crc  = packet.calc_crc();
 	
@@ -270,7 +142,7 @@ bool CFA835::write_user_flash(const std::vector<uint8_t>& data)
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::WRITE_USER_FLASH)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::WRITE_USER_FLASH)) )
 	{
 		return false;
 	}
@@ -284,8 +156,8 @@ bool CFA835::read_user_flash(const uint8_t num_to_read, std::vector<uint8_t>* co
 		return false;
 	}
 
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::READ_USER_FLASH);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::READ_USER_FLASH);
 	packet.data = {{num_to_read}};
 	packet.crc  = packet.calc_crc();
 	
@@ -301,7 +173,7 @@ bool CFA835::read_user_flash(const uint8_t num_to_read, std::vector<uint8_t>* co
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::WRITE_USER_FLASH)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::WRITE_USER_FLASH)) )
 	{
 		return false;
 	}
@@ -316,8 +188,8 @@ bool CFA835::read_user_flash(const uint8_t num_to_read, std::vector<uint8_t>* co
 
 bool CFA835::clear_display()
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::CLEAR_DISPLAY);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::CLEAR_DISPLAY);
 	packet.data.clear();
 	packet.crc  = packet.calc_crc();
 	
@@ -333,7 +205,7 @@ bool CFA835::clear_display()
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::CLEAR_DISPLAY)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::CLEAR_DISPLAY)) )
 	{
 		return false;
 	}
@@ -343,13 +215,13 @@ bool CFA835::clear_display()
 
 bool CFA835::all_on_display()
 {
-	return draw_rectangle(0, 0, WIDTH-1, HEIGHT-1, uint8_t(CFA835::LCD_SHADE::DARK), uint8_t(CFA835::LCD_SHADE::DARK));
+	return draw_rectangle(0, 0, WIDTH-1, HEIGHT-1, uint8_t(LCD_SHADE::DARK), uint8_t(LCD_SHADE::DARK));
 }
 
 bool CFA835::restart_display(const RESTART_TYPE restart_type)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::RESTART);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::RESTART);
 
 	switch(restart_type)
 	{
@@ -397,7 +269,7 @@ bool CFA835::restart_display(const RESTART_TYPE restart_type)
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::RESTART)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::RESTART)) )
 	{
 		return false;
 	}
@@ -407,8 +279,8 @@ bool CFA835::restart_display(const RESTART_TYPE restart_type)
 
 bool CFA835::set_keypad_reporting_mask(const uint8_t press_mask, const uint8_t release_mask)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::KEYPAD_REPORTING);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::KEYPAD_REPORTING);
 	packet.data = {{press_mask, release_mask}};
 	packet.crc  = packet.calc_crc();	
 
@@ -424,7 +296,7 @@ bool CFA835::set_keypad_reporting_mask(const uint8_t press_mask, const uint8_t r
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::KEYPAD_REPORTING)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::KEYPAD_REPORTING)) )
 	{
 		return false;
 	}
@@ -434,8 +306,8 @@ bool CFA835::set_keypad_reporting_mask(const uint8_t press_mask, const uint8_t r
 
 bool CFA835::poll_keypad(uint8_t* const out_keys_down, uint8_t* const out_keys_pressed, uint8_t* const out_keys_released)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::READ_KEYPAD);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::READ_KEYPAD);
 	packet.data.clear();
 	packet.crc  = packet.calc_crc();
 	
@@ -451,7 +323,7 @@ bool CFA835::poll_keypad(uint8_t* const out_keys_down, uint8_t* const out_keys_p
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::READ_KEYPAD)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::READ_KEYPAD)) )
 	{
 		return false;
 	}
@@ -493,8 +365,8 @@ bool CFA835::write_text(const int col, const int row, const std::string& str)
 		return false;
 	}
 
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::WRITE_TEXT);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::WRITE_TEXT);
 	packet.data.push_back(col & 0xFF);
 	packet.data.push_back(row & 0xFF);
 	packet.data.insert(packet.data.end(), str.begin(), str.end());
@@ -512,7 +384,7 @@ bool CFA835::write_text(const int col, const int row, const std::string& str)
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::WRITE_TEXT)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::WRITE_TEXT)) )
 	{
 		return false;
 	}
@@ -531,8 +403,8 @@ bool CFA835::set_cursor_position(const uint8_t col, const uint8_t row)
 		return false;
 	}
 
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::DISPLAY_CURSOR_POSITION);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::DISPLAY_CURSOR_POSITION);
 	packet.data = {{col, row}};
 	packet.crc  = packet.calc_crc();
 	
@@ -548,7 +420,7 @@ bool CFA835::set_cursor_position(const uint8_t col, const uint8_t row)
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::DISPLAY_CURSOR_POSITION)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::DISPLAY_CURSOR_POSITION)) )
 	{
 		return false;
 	}
@@ -557,8 +429,8 @@ bool CFA835::set_cursor_position(const uint8_t col, const uint8_t row)
 }
 bool CFA835::set_cursor_style(const CURSOR_STYLE style)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::CURSOR_STYLE);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::CURSOR_STYLE);
 	packet.data = {{uint8_t(style)}};
 	packet.crc  = packet.calc_crc();
 	
@@ -574,7 +446,7 @@ bool CFA835::set_cursor_style(const CURSOR_STYLE style)
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::CURSOR_STYLE)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::CURSOR_STYLE)) )
 	{
 		return false;
 	}
@@ -584,9 +456,9 @@ bool CFA835::set_cursor_style(const CURSOR_STYLE style)
 
 bool CFA835::get_cfa_fbscab_count(uint8_t* out_count)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::FBSCAB_CMD);
-	packet.data = {{uint8_t(CFA835::FBSCAB_CMD_CODE::GET_MODULE_INFO)}};
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::FBSCAB_CMD);
+	packet.data = {{uint8_t(FBSCAB_CMD_CODE::GET_MODULE_INFO)}};
 	packet.crc  = packet.calc_crc();
 	
 	if( ! send_packet(packet, PACKET_TIMEOUT) )
@@ -601,7 +473,7 @@ bool CFA835::get_cfa_fbscab_count(uint8_t* out_count)
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::FBSCAB_CMD), uint8_t(CFA835::FBSCAB_CMD_CODE::GET_MODULE_INFO)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::FBSCAB_CMD), uint8_t(FBSCAB_CMD_CODE::GET_MODULE_INFO)) )
 	{
 		return false;
 	}
@@ -615,9 +487,9 @@ bool CFA835::get_cfa_fbscab_count(uint8_t* out_count)
 }
 bool CFA835::get_cfa_fbscab_info(const uint8_t fbscab_idx, std::string* const out_info)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::FBSCAB_CMD);
-	packet.data = {{uint8_t(CFA835::FBSCAB_CMD_CODE::GET_MODULE_INFO), fbscab_idx}};
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::FBSCAB_CMD);
+	packet.data = {{uint8_t(FBSCAB_CMD_CODE::GET_MODULE_INFO), fbscab_idx}};
 	packet.crc  = packet.calc_crc();
 	
 	if( ! send_packet(packet, PACKET_TIMEOUT) )
@@ -632,7 +504,7 @@ bool CFA835::get_cfa_fbscab_info(const uint8_t fbscab_idx, std::string* const ou
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::FBSCAB_CMD), uint8_t(CFA835::FBSCAB_CMD_CODE::GET_MODULE_INFO)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::FBSCAB_CMD), uint8_t(FBSCAB_CMD_CODE::GET_MODULE_INFO)) )
 	{
 		return false;
 	}
@@ -664,9 +536,9 @@ bool CFA835::get_cfa_fbscab_dow_info(const uint8_t fbscab_idx, std::vector<std::
 
 	for(uint8_t dow_idx = 0; dow_idx < 16; dow_idx++)
 	{
-		CFA835::CFA835_Packet packet;
-		packet.cmd  = uint8_t(CFA835::OP_CODE::FBSCAB_CMD);
-		packet.data = {{uint8_t(CFA835::FBSCAB_CMD_CODE::READ_DOW_INFO), fbscab_idx, dow_idx}};
+		CFA_Packet packet;
+		packet.cmd  = uint8_t(OP_CODE::FBSCAB_CMD);
+		packet.data = {{uint8_t(FBSCAB_CMD_CODE::READ_DOW_INFO), fbscab_idx, dow_idx}};
 		packet.crc  = packet.calc_crc();
 		
 		if( ! send_packet(packet, PACKET_TIMEOUT) )
@@ -681,12 +553,12 @@ bool CFA835::get_cfa_fbscab_dow_info(const uint8_t fbscab_idx, std::vector<std::
 			return false;
 		}
 
-		if( packet.is_error_response_to(uint8_t(CFA835::OP_CODE::FBSCAB_CMD), uint8_t(CFA835::FBSCAB_CMD_CODE::READ_DOW_INFO)) )
+		if( packet.is_error_response_to(uint8_t(OP_CODE::FBSCAB_CMD), uint8_t(FBSCAB_CMD_CODE::READ_DOW_INFO)) )
 		{
 			return false;
 		}
 
-		if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::FBSCAB_CMD), uint8_t(CFA835::FBSCAB_CMD_CODE::READ_DOW_INFO)) )
+		if( ! packet.is_ack_response_to(uint8_t(OP_CODE::FBSCAB_CMD), uint8_t(FBSCAB_CMD_CODE::READ_DOW_INFO)) )
 		{
 			return false;
 		}
@@ -724,9 +596,9 @@ bool CFA835::get_cfa_fbscab_dow_info(const uint8_t fbscab_idx, std::vector<std::
 
 bool CFA835::get_cfa_fbscab_dow_temp(const uint8_t fbscab_idx, const uint8_t dow_idx, uint16_t* out_temp)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::FBSCAB_CMD);
-	packet.data = {{uint8_t(CFA835::FBSCAB_CMD_CODE::READ_DOW_TEMP), fbscab_idx, dow_idx}};
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::FBSCAB_CMD);
+	packet.data = {{uint8_t(FBSCAB_CMD_CODE::READ_DOW_TEMP), fbscab_idx, dow_idx}};
 	packet.crc  = packet.calc_crc();
 	
 	if( ! send_packet(packet, PACKET_TIMEOUT) )
@@ -741,7 +613,7 @@ bool CFA835::get_cfa_fbscab_dow_temp(const uint8_t fbscab_idx, const uint8_t dow
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::FBSCAB_CMD), uint8_t(CFA835::FBSCAB_CMD_CODE::READ_DOW_TEMP)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::FBSCAB_CMD), uint8_t(FBSCAB_CMD_CODE::READ_DOW_TEMP)) )
 	{
 		return false;
 	}
@@ -771,9 +643,9 @@ bool CFA835::get_cfa_fbscab_dow_temp(const uint8_t fbscab_idx, const uint8_t dow
 
 bool CFA835::set_graphic_option(const bool en_manual_buffer_flush, const bool en_gamma_correction)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
-	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::GRAPHIC_OPT), 0}};
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::GRAPHIC_CMD);
+	packet.data = {{uint8_t(GRAPHIC_CMD_CODE::GRAPHIC_OPT), 0}};
 
 	if(en_manual_buffer_flush)
 	{
@@ -799,7 +671,7 @@ bool CFA835::set_graphic_option(const bool en_manual_buffer_flush, const bool en
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::GRAPHIC_OPT)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::GRAPHIC_CMD), uint8_t(GRAPHIC_CMD_CODE::GRAPHIC_OPT)) )
 	{
 		return false;
 	}
@@ -808,9 +680,9 @@ bool CFA835::set_graphic_option(const bool en_manual_buffer_flush, const bool en
 }
 bool CFA835::flush_graphics_buffer()
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
-	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::BUFFER_FLUSH)}};
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::GRAPHIC_CMD);
+	packet.data = {{uint8_t(GRAPHIC_CMD_CODE::BUFFER_FLUSH)}};
 	packet.crc  = packet.calc_crc();
 	
 	if( ! send_packet(packet, PACKET_TIMEOUT) )
@@ -825,7 +697,7 @@ bool CFA835::flush_graphics_buffer()
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::BUFFER_FLUSH)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::GRAPHIC_CMD), uint8_t(GRAPHIC_CMD_CODE::BUFFER_FLUSH)) )
 	{
 		return false;
 	}
@@ -857,9 +729,9 @@ bool CFA835::draw_buffer(const bool transparency, const bool invert, const uint8
 		opt |= (1U << 2);
 	}
 
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
-	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::WRITE_BUFFER), opt, x_start, y_start, width, height}};
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::GRAPHIC_CMD);
+	packet.data = {{uint8_t(GRAPHIC_CMD_CODE::WRITE_BUFFER), opt, x_start, y_start, width, height}};
 	packet.crc  = packet.calc_crc();
 
 	if(rle)
@@ -891,7 +763,7 @@ bool CFA835::draw_buffer(const bool transparency, const bool invert, const uint8
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::WRITE_BUFFER)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::GRAPHIC_CMD), uint8_t(GRAPHIC_CMD_CODE::WRITE_BUFFER)) )
 	{
 		return false;
 	}
@@ -901,9 +773,9 @@ bool CFA835::draw_buffer(const bool transparency, const bool invert, const uint8
 
 bool CFA835::draw_pixel(const uint8_t x, const uint8_t y, const uint8_t shade)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
-	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_PIXEL), x, y, shade}};
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::GRAPHIC_CMD);
+	packet.data = {{uint8_t(GRAPHIC_CMD_CODE::DRAW_PIXEL), x, y, shade}};
 	packet.crc  = packet.calc_crc();
 	
 	if( ! send_packet(packet, PACKET_TIMEOUT) )
@@ -918,7 +790,7 @@ bool CFA835::draw_pixel(const uint8_t x, const uint8_t y, const uint8_t shade)
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_PIXEL)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::GRAPHIC_CMD), uint8_t(GRAPHIC_CMD_CODE::DRAW_PIXEL)) )
 	{
 		return false;
 	}
@@ -927,9 +799,9 @@ bool CFA835::draw_pixel(const uint8_t x, const uint8_t y, const uint8_t shade)
 }
 bool CFA835::draw_line(const uint8_t x_start, const uint8_t y_start, const uint8_t x_end, const uint8_t y_end, const uint8_t line_shade)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
-	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_LINE), x_start, y_start, x_end, y_end, line_shade}};
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::GRAPHIC_CMD);
+	packet.data = {{uint8_t(GRAPHIC_CMD_CODE::DRAW_LINE), x_start, y_start, x_end, y_end, line_shade}};
 	packet.crc  = packet.calc_crc();
 	
 	if( ! send_packet(packet, PACKET_TIMEOUT) )
@@ -944,7 +816,7 @@ bool CFA835::draw_line(const uint8_t x_start, const uint8_t y_start, const uint8
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_LINE)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::GRAPHIC_CMD), uint8_t(GRAPHIC_CMD_CODE::DRAW_LINE)) )
 	{
 		return false;
 	}
@@ -953,9 +825,9 @@ bool CFA835::draw_line(const uint8_t x_start, const uint8_t y_start, const uint8
 }
 bool CFA835::draw_rectangle(const uint8_t x_top_left, const uint8_t y_top_left, const uint8_t width, const uint8_t height, const uint8_t line_shade, const uint8_t fill_shade)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
-	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_RECTANGLE), x_top_left, y_top_left, width, height, line_shade, fill_shade}};
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::GRAPHIC_CMD);
+	packet.data = {{uint8_t(GRAPHIC_CMD_CODE::DRAW_RECTANGLE), x_top_left, y_top_left, width, height, line_shade, fill_shade}};
 	packet.crc  = packet.calc_crc();
 	
 	if( ! send_packet(packet, PACKET_TIMEOUT) )
@@ -970,7 +842,7 @@ bool CFA835::draw_rectangle(const uint8_t x_top_left, const uint8_t y_top_left, 
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_RECTANGLE)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::GRAPHIC_CMD), uint8_t(GRAPHIC_CMD_CODE::DRAW_RECTANGLE)) )
 	{
 		return false;
 	}
@@ -979,9 +851,9 @@ bool CFA835::draw_rectangle(const uint8_t x_top_left, const uint8_t y_top_left, 
 }
 bool CFA835::draw_circle(const uint8_t x_center, const uint8_t y_center, const uint8_t radius, const uint8_t line_shade, const uint8_t fill_shade)
 {
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::GRAPHIC_CMD);
-	packet.data = {{uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_CIRCLE), x_center, y_center, radius, line_shade, fill_shade}};
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::GRAPHIC_CMD);
+	packet.data = {{uint8_t(GRAPHIC_CMD_CODE::DRAW_CIRCLE), x_center, y_center, radius, line_shade, fill_shade}};
 	packet.crc  = packet.calc_crc();
 	
 	if( ! send_packet(packet, PACKET_TIMEOUT) )
@@ -996,7 +868,7 @@ bool CFA835::draw_circle(const uint8_t x_center, const uint8_t y_center, const u
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GRAPHIC_CMD), uint8_t(CFA835::GRAPHIC_CMD_CODE::DRAW_CIRCLE)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::GRAPHIC_CMD), uint8_t(GRAPHIC_CMD_CODE::DRAW_CIRCLE)) )
 	{
 		return false;
 	}
@@ -1007,8 +879,8 @@ bool CFA835::draw_circle(const uint8_t x_center, const uint8_t y_center, const u
 bool CFA835::set_gpio(const ONBOARD_GPIO gpio, const uint8_t duty_percent, const uint8_t drive_mode)
 {
 	const uint8_t pinfun_drive = 0x08U | (drive_mode & 0x07U);
-	CFA835::CFA835_Packet packet;
-	packet.cmd  = uint8_t(CFA835::OP_CODE::GPIO_CONFIG);
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(OP_CODE::GPIO_CONFIG);
 	packet.data = {{uint8_t(gpio), duty_percent, pinfun_drive}};
 	packet.crc  = packet.calc_crc();
 	
@@ -1024,7 +896,7 @@ bool CFA835::set_gpio(const ONBOARD_GPIO gpio, const uint8_t duty_percent, const
 		return false;
 	}
 
-	if( ! packet.is_ack_response_to(uint8_t(CFA835::OP_CODE::GPIO_CONFIG)) )
+	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::GPIO_CONFIG)) )
 	{
 		return false;
 	}
@@ -1093,102 +965,6 @@ bool CFA835::set_all_red_gpio_led(const uint8_t val)
 	}
 
 	return ret;
-}
-
-bool CFA835::send_packet(const CFA835_Packet& packet, const std::chrono::milliseconds& max_wait)
-{
-	std::vector<uint8_t> temp;
-
-	if( ! packet.serialize(&temp) )
-	{
-		return false;
-	}
-
-	return send_buffer(temp, max_wait);
-}
-
-bool CFA835::send_buffer(const std::vector<uint8_t>& buf, const std::chrono::milliseconds& max_wait)
-{
-	size_t num_written = 0;
-	do
-	{
-		ssize_t ret = write(m_fd, buf.data() + num_written, buf.size() - num_written);
-		if(ret < 0)
-		{
-			SPDLOG_WARN("CFA835::send_buffer: errno: {:d}", errno);
-			return false;
-		}
-
-		SPDLOG_DEBUG("CFA835::send_buffer: {:d}", ret);
-
-		num_written += size_t(ret);
-
-	} while(num_written < buf.size());
-
-	return num_written == buf.size();
-}
-
-bool CFA835::wait_for_packet(CFA835_Packet* out_packet, const std::chrono::milliseconds& max_wait)
-{
-	std::vector<uint8_t> temp;
-	temp.resize(4+255);
-
-	if( ! wait_for_read(temp.data(), 2, max_wait) ) // TODO update wait time as time elapses
-	{
-		return false;
-	}
-
-	if(temp[1])
-	{
-		if( ! wait_for_read(temp.data()+2, temp[1], max_wait) ) // TODO update wait time as time elapses
-		{
-			return false;
-		}
-	}
-
-	if( ! wait_for_read(temp.data()+2+temp[1], 2, max_wait) ) // TODO update wait time as time elapses
-	{
-		return false;
-	}
-
-	temp.resize(4+temp[1]);
-
-	if( ! out_packet->deserialize(temp) )
-	{
-		SPDLOG_WARN("CFA835::wait_for_packet: deserialize failed");
-		return false;
-	}
-
-	return true;
-
-}
-
-bool CFA835::wait_for_read(uint8_t* out_data, size_t len, const std::chrono::milliseconds& max_wait)
-{
-	// TODO: update to use epoll and enforce max_wait
-
-	size_t num_read = 0;
-	do
-	{
-		ssize_t ret = read(m_fd, out_data + num_read, len - num_read);
-		if(ret < 0)
-		{
-			SPDLOG_WARN("CFA835::wait_for_read: errno: {:d}", errno);
-			return false;
-		}
-		
-		if(ret == 0)
-		{
-			return false;
-		}
-
-		SPDLOG_DEBUG("CFA835::wait_for_read: {:d}", ret);
-
-		num_read += size_t(ret);
-
-	} while(num_read < len);
-
-	return num_read == len;
 }
 
 size_t CFA835::rle_compress(const std::vector<uint8_t>& in, std::vector<uint8_t>* const out)
