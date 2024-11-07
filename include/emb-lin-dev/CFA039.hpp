@@ -108,5 +108,31 @@ public:
 		MULTIPLE                  = 0x03
 	};
 
+	enum class LED_BITMASK : uint8_t
+	{
+		LED_1   = 1U << 0,
+		LED_2   = 1U << 1,
+		LED_3   = 1U << 2,
+		LED_4   = 1U << 3,
+		LED_5   = 1U << 4,
+		LED_6   = 1U << 5,
+		LED_7   = 1U << 6,
+		LED_8   = 1U << 7
+	};
+
+	enum class KEYPAD_BITMASK : uint8_t
+	{
+		KEY_UP     = 1U << 0,
+		KEY_ENTER  = 1U << 1,
+		KEY_CANCEL = 1U << 2,
+		KEY_LEFT   = 1U << 3,
+		KEY_RIGHT  = 1U << 4,
+		KEY_DOWN   = 1U << 5
+	};
+
+	bool set_led_color(const uint8_t led_mask, const uint8_t key_mask, const uint8_t r, const uint8_t g, const uint8_t b);
+
+	bool set_led_autodim(const uint8_t l1_timeout_s, const uint8_t l2_timeout_s, const uint8_t l1_dim_percent, const uint8_t l2_dim_percent);
+
 	bool send_image_argb8888(const uint16_t x, const uint16_t y, const uint8_t z, std::vector<uint8_t>& img_argb8888, const size_t width, const size_t height);
 };
