@@ -132,6 +132,8 @@ public:
 
 	bool set_led_color(const uint8_t led_mask, const uint8_t key_mask, const uint8_t r, const uint8_t g, const uint8_t b);
 
+	// l1 is first and brighter, l2 is second and dimmer.
+	// if l2 is not wanted set l2_timeout_s to 0
 	bool set_led_autodim(const uint8_t l1_timeout_s, const uint8_t l2_timeout_s, const uint8_t l1_dim_percent, const uint8_t l2_dim_percent);
 
 	bool send_image_argb8888(const uint16_t x, const uint16_t y, const uint8_t z, std::vector<uint8_t>& img_argb8888, const size_t width, const size_t height);
