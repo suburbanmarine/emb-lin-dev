@@ -119,6 +119,40 @@ public:
 			return (x & 0x00FFU) >> 0;
 		}
 
+		// These op-codes have fairly similar (but not always identical) operation among the CFA635 / CFA735 / CFA835 / CFA039A0-N-V family
+		enum class COMMON_OP_CODE : uint8_t
+		{
+			PING                     = 0x00,
+			GET_MODULE_INFO          = 0x01,
+			RESTART                  = 0x05,
+			CLEAR_DISPLAY            = 0x06,
+			KEYPAD_REPORTING         = 0x17,
+			READ_KEYPAD              = 0x18
+		};
+
+		enum class RESTART_TYPE : uint8_t
+		{
+			RELOAD_BOOT_SETTINGS,
+			RESTART_HOST,
+			POWER_OFF_HOST,
+			RESTART_DISPLAY,
+			RESTORE_DEFAULT_SETTINGS,
+			RESTART_DISPLAY_TO_BOOTLOADER // only CFA039A0-N-V
+		};
+
+		// Commands that are common in the CFA635 / CFA735 / CFA835 / CFA039A0-N-V family
+		// info
+		bool send_ping(const std::string& msg);
+		bool get_module_info(const bool serial_nversion, std::string* const out_info);
+
+		bool restart_display(const RESTART_TYPE restart_type);
+
+		bool clear_display();
+
+		// keypad
+		bool set_keypad_reporting_mask(const uint8_t press_mask, const uint8_t release_mask);
+		bool poll_keypad(uint8_t* const out_keys_down, uint8_t* const out_keys_pressed, uint8_t* const out_keys_released);
+
 		bool send_packet(const CFA_Packet& packet, const std::chrono::milliseconds& max_wait);
 		bool send_buffer(const std::vector<uint8_t>& buf, const std::chrono::milliseconds& max_wait);
 		bool wait_for_packet(CFA_Packet* out_packet, const std::chrono::milliseconds& max_wait);

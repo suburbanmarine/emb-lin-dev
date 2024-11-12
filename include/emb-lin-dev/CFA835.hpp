@@ -193,19 +193,6 @@ public:
 		HIZ_UP_STRONG_DOWN    = 0x07U  // eg open drain
 	};
 
-	enum class RESTART_TYPE : uint8_t
-	{
-		RELOAD_BOOT_SETTINGS,
-		RESTART_HOST,
-		POWER_OFF_HOST,
-		RESTART_DISPLAY,
-		RESTORE_DEFAULT_SETTINGS
-	};
-
-	// info
-	bool send_ping(const std::string& msg);
-	bool get_module_info(const bool serial_nversion, std::string* const out_info);
-
 	bool set_brightness(const uint8_t display_percent, const uint8_t keypad_percent);
 	bool set_gpio(const ONBOARD_GPIO gpio, const uint8_t duty_percent, const uint8_t drive_mode);
 
@@ -218,13 +205,7 @@ public:
 	bool write_user_flash(const std::vector<uint8_t>& data);
 	bool read_user_flash(const uint8_t num_to_read, std::vector<uint8_t>* const out_data);
 
-	bool clear_display();
 	bool all_on_display();
-	bool restart_display(const RESTART_TYPE restart_type);
-
-	// keypad
-	bool set_keypad_reporting_mask(const uint8_t press_mask, const uint8_t release_mask);
-	bool poll_keypad(uint8_t* const out_keys_down, uint8_t* const out_keys_pressed, uint8_t* const out_keys_released);
 
 	// text display
 	bool write_text(const int col, const int row, const std::string& str);
