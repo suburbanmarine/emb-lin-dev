@@ -368,6 +368,59 @@ bool CFA_base::poll_keypad(uint8_t* const out_keys_down, uint8_t* const out_keys
 	return true;
 }
 
+bool CFA_base::set_brightness(const uint8_t display_percent)
+{
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(COMMON_OP_CODE::DISPLAY_KEYPAD_BACKLIGHT);
+	packet.data = {{display_percent}};
+	packet.crc  = packet.calc_crc();
+	
+	if( ! send_packet(packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to send_packet");
+		return false;
+	}
+
+	if( ! wait_for_packet(&packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to wait_for_packet");
+		return false;
+	}
+
+	if( ! packet.is_ack_response_to(uint8_t(COMMON_OP_CODE::DISPLAY_KEYPAD_BACKLIGHT)) )
+	{
+		return false;
+	}
+
+	return true;
+}
+bool CFA_base::set_brightness(const uint8_t display_percent, const uint8_t keypad_percent)
+{
+	CFA_Packet packet;
+	packet.cmd  = uint8_t(COMMON_OP_CODE::DISPLAY_KEYPAD_BACKLIGHT);
+	packet.data = {{display_percent, keypad_percent}};
+	packet.crc  = packet.calc_crc();
+	
+	if( ! send_packet(packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to send_packet");
+		return false;
+	}
+
+	if( ! wait_for_packet(&packet, PACKET_TIMEOUT) )
+	{
+		SPDLOG_ERROR("Failed to wait_for_packet");
+		return false;
+	}
+
+	if( ! packet.is_ack_response_to(uint8_t(COMMON_OP_CODE::DISPLAY_KEYPAD_BACKLIGHT)) )
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool CFA_base::send_packet(const CFA_Packet& packet, const std::chrono::milliseconds& max_wait)
 {
 	std::vector<uint8_t> temp;

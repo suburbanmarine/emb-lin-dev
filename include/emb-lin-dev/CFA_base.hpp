@@ -127,7 +127,8 @@ public:
 			RESTART                  = 0x05,
 			CLEAR_DISPLAY            = 0x06,
 			KEYPAD_REPORTING         = 0x17,
-			READ_KEYPAD              = 0x18
+			READ_KEYPAD              = 0x18,
+			DISPLAY_KEYPAD_BACKLIGHT = 0x0E
 		};
 
 		enum class RESTART_TYPE : uint8_t
@@ -148,6 +149,9 @@ public:
 		bool restart_display(const RESTART_TYPE restart_type);
 
 		bool clear_display();
+
+		bool set_brightness(const uint8_t display_percent);
+		bool set_brightness(const uint8_t display_percent, const uint8_t keypad_percent);
 
 		// keypad
 		bool set_keypad_reporting_mask(const uint8_t press_mask, const uint8_t release_mask);

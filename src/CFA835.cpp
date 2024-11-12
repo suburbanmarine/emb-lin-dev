@@ -25,33 +25,6 @@ CFA835::~CFA835()
 	
 }
 
-bool CFA835::set_brightness(const uint8_t display_percent, const uint8_t keypad_percent)
-{
-	CFA_Packet packet;
-	packet.cmd  = uint8_t(OP_CODE::DISPLAY_KEYPAD_BACKLIGHT);
-	packet.data = {{display_percent, keypad_percent}};
-	packet.crc  = packet.calc_crc();
-	
-	if( ! send_packet(packet, PACKET_TIMEOUT) )
-	{
-		SPDLOG_ERROR("Failed to send_packet");
-		return false;
-	}
-
-	if( ! wait_for_packet(&packet, PACKET_TIMEOUT) )
-	{
-		SPDLOG_ERROR("Failed to wait_for_packet");
-		return false;
-	}
-
-	if( ! packet.is_ack_response_to(uint8_t(OP_CODE::DISPLAY_KEYPAD_BACKLIGHT)) )
-	{
-		return false;
-	}
-
-	return true;
-}
-
 bool CFA835::write_user_flash(const std::vector<uint8_t>& data)
 {
 	if( data.empty() || (data.size() > 124) )

@@ -110,14 +110,14 @@ public:
 
 	enum class LED_BITMASK : uint8_t
 	{
-		LED_1   = 1U << 0,
-		LED_2   = 1U << 1,
-		LED_3   = 1U << 2,
-		LED_4   = 1U << 3,
-		LED_5   = 1U << 4,
-		LED_6   = 1U << 5,
-		LED_7   = 1U << 6,
-		LED_8   = 1U << 7
+		LED_1   = 1U << 0, // top indicator
+		LED_2   = 1U << 1, // 2nd indicator
+		LED_3   = 1U << 2, // 3rd indicator
+		LED_4   = 1U << 3, // bottom indicator
+		LED_5   = 1U << 4, // external led on H3 #1
+		LED_6   = 1U << 5, // external led on H3 #2
+		LED_7   = 1U << 6, // external led on H3 #3
+		LED_8   = 1U << 7  // external led on H3 #4
 	};
 
 	enum class KEYPAD_BITMASK : uint8_t

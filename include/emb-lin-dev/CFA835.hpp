@@ -193,7 +193,6 @@ public:
 		HIZ_UP_STRONG_DOWN    = 0x07U  // eg open drain
 	};
 
-	bool set_brightness(const uint8_t display_percent, const uint8_t keypad_percent);
 	bool set_gpio(const ONBOARD_GPIO gpio, const uint8_t duty_percent, const uint8_t drive_mode);
 
 	// set all onboard indication leds
