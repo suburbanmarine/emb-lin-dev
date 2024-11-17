@@ -131,6 +131,11 @@ public:
 			DISPLAY_KEYPAD_BACKLIGHT = 0x0E
 		};
 
+		enum class COMMON_REPORT_CODE : uint8_t
+		{
+			KEY_ACTIVITY = 0x80
+		};
+
 		enum class RESTART_TYPE : uint8_t
 		{
 			RELOAD_BOOT_SETTINGS,

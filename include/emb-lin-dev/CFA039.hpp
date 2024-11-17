@@ -57,6 +57,16 @@ public:
 		RESERVED_DEBUGGING       = 0x3E
 	};
 
+	enum class REPORT_CODE : uint8_t
+	{
+		KEY_ACTIVITY               = 0x00,
+		TOUCHSCREEN_ACTIVITY       = 0x03,
+		OBJECT_TOUCH_ACTIVITY      = 0x04,
+		BUTTON_TOUCH_ACTIVITY      = 0x06,
+		SLIDER_TOUCH_ACTIVITY      = 0x07,
+		NUMBER_EDIT_TOUCH_ACTIVITY = 0x08,
+		CHECKBOX_TOUCH_ACTIVITY    = 0x09
+	};
 
 	enum class STORAGE_CMD_CODE : uint8_t
 	{
