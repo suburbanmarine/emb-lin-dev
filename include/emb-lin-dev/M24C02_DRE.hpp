@@ -11,16 +11,13 @@
 
 #pragma once
 
-#include "emb-lin-dev/I2C_dev_base.hpp"
+#include "emb-lin-dev/M24XXX_DRE_base.hpp"
 
 #include <array>
 
-class M24C02_DRE : public I2C_dev_base
+class M24C02_DRE : public M24XXX_DRE_base<256, 16, 1>
 {
 public:
-	typedef std::array<uint8_t, 16> Pagebuffer;
-	typedef std::array<uint8_t, 3> Device_id_code;
-
 	M24C02_DRE(const std::shared_ptr<I2C_bus_base>& bus, const long id);
 
 	bool write_id_page(const Pagebuffer& data);
@@ -33,21 +30,6 @@ public:
 	long get_idpage_addr() const
 	{
 		return (unsigned(m_dev_addr) & 0x07U) | 0x58U;
-	}
-
-	static constexpr size_t get_size()
-	{
-		return 256;
-	}
-
-	static constexpr size_t get_pagesize()
-	{
-		return 16;
-	}
-
-	static constexpr size_t get_addrsize()
-	{
-		return 1;
 	}
 
 	static constexpr std::chrono::milliseconds get_max_write_time()
@@ -70,6 +52,4 @@ protected:
 	bool write_page(const size_t addr, const void* buf, const size_t size);
 
 	bool wait_write_complete();
-
-	typedef std::array<uint8_t, 17> Writebuffer;
 };
