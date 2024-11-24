@@ -62,15 +62,18 @@ public:
 	// ID -> addr_size
 	static constexpr std::map<size_t, size_t> ADDR_SIZE = {
 		{0x08, 1},
-		{0x09, 1},
-		{0x0A, 1},
-		{0x0B, 1},
+		{0x09, 1}, // A8 sent as i2c addr b1 (b0 is R/nW bit)
+		{0x0A, 1}, // A9..A8 sent as i2c addr b2..b1
+		{0x0B, 1}, // A10..A8 sent as i2c addr b3..b1
 		{0x0C, 2},
 		{0x0D, 2},
 		{0x0E, 2},
 		{0x0F, 2},
 		{0x10, 2}
 	};
+
+	static constexpr std::chrono::milliseconds BYTE_WRITE_TIME(4);
+	static constexpr std::chrono::milliseconds PAGE_WRITE_TIME(4);
 
 	M24XXX_DRE_base(const M24XXX_DRE_Properties& prop, const std::shared_ptr<I2C_bus_base>& bus, const long id) : I2C_dev_base(bus, id)
 	{
