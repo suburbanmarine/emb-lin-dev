@@ -17,9 +17,15 @@
 #include <cstddef>
 #include <cstdint>
 
+struct M24XXX_DRE_ID
+{
+	uint8_t mf_code;
+	uint8_t fam_code;
+	uint8_t density_code; // so far, 2^density_code == size, but it could change
+};
+
 struct M24XXX_DRE_Properties
 {
-	size_t density_code; // so far, 2^density_code == size, but it could change
 	size_t size;
 	size_t page_size;
 	size_t addr_size;
@@ -33,7 +39,7 @@ public:
 	static constexpr size_t MF_CODE     = 0x20U; // ST
 	static constexpr size_t FAMILY_CODE = 0xE0U; // M24 series
 
-	// ID -> size
+	// density_code -> size
 	static constexpr std::map<size_t, size_t> DEVICE_SIZE = {
 		{0x08,   256},
 		{0x09,   512},
@@ -46,7 +52,7 @@ public:
 		{0x10, 65536}
 	};
 
-	// ID -> page_size
+	// density_code -> page_size
 	static constexpr std::map<size_t, size_t> PAGE_SIZE = {
 		{0x08,  16},
 		{0x09,  16},
@@ -59,7 +65,7 @@ public:
 		{0x10, 128}
 	};
 
-	// ID -> addr_size
+	// density_code -> addr_size
 	static constexpr std::map<size_t, size_t> ADDR_SIZE = {
 		{0x08, 1},
 		{0x09, 1}, // A8 sent as i2c addr b1 (b0 is R/nW bit)
