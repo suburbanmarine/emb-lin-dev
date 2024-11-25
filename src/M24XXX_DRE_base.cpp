@@ -87,7 +87,6 @@ bool M24XXX_DRE_base::read_id_code(Device_id_code* const out_buf)
 {
 	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
 
-	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
 
 	std::array<uint8_t, 2> addr_data;
 	addr_data.fill(0);
@@ -106,6 +105,9 @@ bool M24XXX_DRE_base::read_id_code(Device_id_code* const out_buf)
 	i2c_rdwr_ioctl_data idat {};
 	idat.msgs  = trx.data();
 	idat.nmsgs = trx.size();
+
+	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+	
 	if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
 	{
 		SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
@@ -119,8 +121,6 @@ bool M24XXX_DRE_base::read_id_page(std::vector<uint8_t>* const out_id_page)
 	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
 
 	out_id_page->resize(prop.page_size);
-
-	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
 
 	std::array<uint8_t, 2> addr_data;
 	addr_data.fill(0);
@@ -139,6 +139,9 @@ bool M24XXX_DRE_base::read_id_page(std::vector<uint8_t>* const out_id_page)
 	i2c_rdwr_ioctl_data idat {};
 	idat.msgs  = trx.data();
 	idat.nmsgs = trx.size();
+
+	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+	
 	if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
 	{
 		SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
@@ -159,7 +162,6 @@ bool M24XXX_DRE_base::write_id_page(const std::vector<uint8_t>& id_page)
 	std::vector<uint8_t> buf;
 	buf.reserve(prop.addr_size + prop.page_size);
 
-	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
 
 	for(size_t i = 0; i < prop.addr_size; i++)
 	{
@@ -176,6 +178,9 @@ bool M24XXX_DRE_base::write_id_page(const std::vector<uint8_t>& id_page)
 	i2c_rdwr_ioctl_data idat {};
 	idat.msgs  = trx.data();
 	idat.nmsgs = trx.size();
+
+	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+	
 	if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
 	{
 		SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
@@ -203,9 +208,13 @@ bool M24XXX_DRE_base::get_id_lock_status(bool* const is_locked)
 
 bool M24XXX_DRE_base::read(const size_t addr, void* buf, const size_t size) 
 {
-	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
+	if( (addr + size) > get_size() )
+	{
+		SPDLOG_ERROR("size is too large");
+		return false;
+	}
 
-	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
 
 	SPDLOG_DEBUG("read 0x{:02X} {:d}@0x{:04X}", m_dev_addr, size, addr);
 
@@ -230,6 +239,9 @@ bool M24XXX_DRE_base::read(const size_t addr, void* buf, const size_t size)
 	i2c_rdwr_ioctl_data idat {};
 	idat.msgs  = trx.data();
 	idat.nmsgs = trx.size();
+
+	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+	
 	if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
 	{
 		SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
@@ -242,6 +254,7 @@ bool M24XXX_DRE_base::write(const size_t addr, const void* buf, const size_t siz
 {		
 	if( (addr + size) > get_size() )
 	{
+		SPDLOG_ERROR("size is too large");
 		return false;
 	}
 
@@ -282,8 +295,6 @@ bool M24XXX_DRE_base::write(const size_t addr, const void* buf, const size_t siz
 
 bool M24XXX_DRE_base::fill(const uint8_t val)
 {
-	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
-
 	const size_t size     = get_size();
 	const size_t pagesize = get_pagesize();
 
@@ -389,6 +400,8 @@ bool M24XXX_DRE_base::write_page(const size_t addr, const void* buf, const size_
 	idat.msgs  = trx.data();
 	idat.nmsgs = trx.size();
 
+	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+
 	if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
 	{
 		SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
@@ -413,28 +426,24 @@ bool M24XXX_DRE_base::wait_write_complete()
 
 	bool ret = false;
 
-	if( ! m_bus->set_device_id(m_dev_addr) )
-	{
-		return false;
-	}
-
 	const size_t max_write_ms = get_max_write_time().count() + 1;
 	std::array<uint8_t, 1> data;
 	data.fill(0);
 
 	std::array<i2c_msg, 1> trx {};
-
-	i2c_rdwr_ioctl_data idat {};
-	idat.msgs  = trx.data();
-	idat.nmsgs = trx.size();
-
 	trx[0].addr  = m_dev_addr;
 	trx[0].flags = 0;
 	trx[0].len   = data.size();
 	trx[0].buf   = data.data();
 
+	i2c_rdwr_ioctl_data idat {};
+	idat.msgs  = trx.data();
+	idat.nmsgs = trx.size();
+
 	for(size_t i = 0; i < max_write_ms; i++)
 	{
+		std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+
 		if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
