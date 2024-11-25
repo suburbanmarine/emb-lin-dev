@@ -26,6 +26,12 @@ extern "C"
 
 #include <algorithm>
 
+const std::map<uint32_t, size_t> MB85RC::DEVICE_PROPERTIES = {
+	{uint32_t(DEVICE_ID_CODE::MB85RC64TA) , 64*1024  / 8},
+	{uint32_t(DEVICE_ID_CODE::MB85RC256TY), 256*1024 / 8},
+	{uint32_t(DEVICE_ID_CODE::MB85RC512TY), 512*1024 / 8}
+};
+
 MB85RC::MB85RC(const std::shared_ptr<I2C_bus_base>& bus, const long id) : I2C_dev_base(bus, id)
 {
 
@@ -34,6 +40,26 @@ MB85RC::MB85RC(const std::shared_ptr<I2C_bus_base>& bus, const long id) : I2C_de
 MB85RC::~MB85RC()
 {
 
+}
+
+bool MB85RC::probe()
+{
+	uint32_t id;
+	if( ! read_device_id(&id) )
+	{
+		return false;
+	}
+
+	const auto it = DEVICE_PROPERTIES.find(id);
+	if(it == DEVICE_PROPERTIES.end())
+	{
+		return false;
+	}
+
+	m_device_id = it->first;
+	m_size      = it->second;
+
+	return true;
 }
 
 bool MB85RC::read_device_id(uint32_t* const out_id)
@@ -138,7 +164,7 @@ bool MB85RC::wake()
 	}
 
 	// wait for trec, 400-450us
-	std::this_thread::sleep_for(std::chrono::millisecond(1));
+	std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
 	return true;
 }

@@ -16,6 +16,8 @@
 
 #include <array>
 #include <optional>
+#include <map>
+#include <chrono>
 #include <vector>
 
 #include <cstddef>
@@ -33,12 +35,24 @@ public:
 		MB85RC512TY = 0x00A598U,
 	};
 
+	// device id -> size
+	static const std::map<uint32_t, size_t> DEVICE_PROPERTIES;
+
 	MB85RC(const std::shared_ptr<I2C_bus_base>& bus, const long id);
 	~MB85RC() override;
+
+	bool probe();
+	size_t get_size() const
+	{
+		return m_size.value();
+	}
 
 	bool read_device_id(uint32_t* const out_id);
 
 	bool sleep();
 	bool wake();
 
+protected:
+	std::optional<uint32_t> m_device_id;
+	std::optional<size_t>   m_size;
 };
