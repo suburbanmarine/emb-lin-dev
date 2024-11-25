@@ -30,9 +30,6 @@ public:
 	bool lock_id_page() override;
 	bool get_id_lock_status(bool* const is_locked) override;
 
-	bool read(const size_t addr, void* buf, const size_t size);
-    bool write(const size_t addr, const void* buf, const size_t size);
-
 protected:
   
 	typedef std::array<uint8_t, 32+2> Writebuffer;

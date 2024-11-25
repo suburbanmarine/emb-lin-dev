@@ -201,6 +201,85 @@ bool M24XXX_DRE_base::get_id_lock_status(bool* const is_locked)
 	return false;
 }
 
+bool M24XXX_DRE_base::read(const size_t addr, void* buf, const size_t size) 
+{
+	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
+
+	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+
+	SPDLOG_DEBUG("read 0x{:02X} {:d}@0x{:04X}", m_dev_addr, size, addr);
+
+	uint8_t dev_addr_with_data_addr;
+	std::array<uint8_t, 2> addr_data;
+	if( ! get_io_addr(addr, &dev_addr_with_data_addr, &addr_data) )
+	{
+		return false;
+	}
+
+	std::array<i2c_msg, 2> trx {};
+	trx[0].addr  = dev_addr_with_data_addr;
+	trx[0].flags = 0;
+	trx[0].len   = prop.addr_size;
+	trx[0].buf   = addr_data.data();
+
+	trx[1].addr  = dev_addr_with_data_addr;
+	trx[1].flags = I2C_M_RD;
+	trx[1].len   = size;
+	trx[1].buf   = (unsigned char*)buf;
+
+	i2c_rdwr_ioctl_data idat {};
+	idat.msgs  = trx.data();
+	idat.nmsgs = trx.size();
+	if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
+	{
+		SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
+		return false;
+	}
+
+	return true;
+}
+bool M24XXX_DRE_base::write(const size_t addr, const void* buf, const size_t size)
+{		
+	if( (addr + size) > get_size() )
+	{
+		return false;
+	}
+
+	SPDLOG_DEBUG("M24XXX_DRE_base::write 0x{:02X} {:d}@0x{:04X}", m_dev_addr, size, addr);
+
+	size_t num_written = 0;
+	const size_t pagesize = get_pagesize();
+
+	// if we are not on a page boundary, unroll the first write
+	if( (addr % pagesize) != 0)
+	{
+		const size_t base_addr    = (addr / pagesize) * pagesize;
+		const size_t num_to_write = std::min(base_addr + pagesize - addr, size);
+
+		if( ! write_page(addr, buf, num_to_write) )
+		{
+			return false;
+		}
+
+		num_written += num_to_write;
+	}
+
+	// write up to page at a time, on page boundaries
+	while(num_written < size)
+	{
+		const size_t num_to_write = std::min<size_t>(size - num_written, pagesize);
+		
+		if( ! write_page(addr + num_written, static_cast<unsigned char const *>(buf) + num_written, num_to_write) )
+		{
+			return false;
+		}
+
+		num_written += num_to_write;
+	}
+
+	return true;
+}
+
 bool M24XXX_DRE_base::fill(const uint8_t val)
 {
 	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
@@ -217,6 +296,52 @@ bool M24XXX_DRE_base::fill(const uint8_t val)
 			return false;
 		}
 	}
+
+	return true;
+}
+
+bool M24XXX_DRE_base::get_io_addr(const size_t addr, uint8_t* const dev_addr_with_data_addr, std::array<uint8_t, 2>* const addr_data)
+{
+	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
+
+	uint8_t temp = m_dev_addr;
+	switch(prop.addr_size)
+	{
+		case 1:
+		{
+			//TODO: encode A8-A10 for 4-16kbit mem in the low bits of m_dev_addr
+			//use prop.addr_bits and stuff the high bits into low bits of m_dev_addr
+			const uint8_t bits_to_pack = prop.addr_bits - 8;
+			if(bits_to_pack != 0)
+			{
+				SPDLOG_ERROR("M24C04-DRE / M24C08-DRE / M24C16-DRE not supported yet");
+				return false;
+			}
+			else
+			{
+				temp = m_dev_addr;
+			}
+
+			(*addr_data)[0] = (addr & 0x00FFU) >> 0;
+			break;
+		}
+		case 2:
+		{
+			// we never pack addr bits in for a two byte addr
+			temp = m_dev_addr;
+
+			(*addr_data)[0] = (addr & 0xFF00U) >> 8;
+			(*addr_data)[1] = (addr & 0x00FFU) >> 0;
+			break;
+		}
+		default:
+		{
+			SPDLOG_ERROR("Invalid addr_size");
+			return false;
+		}
+	}
+
+	*dev_addr_with_data_addr = temp;
 
 	return true;
 }
@@ -244,42 +369,14 @@ bool M24XXX_DRE_base::write_page(const size_t addr, const void* buf, const size_
 	std::vector<uint8_t> write_buf;
 	write_buf.reserve(prop.addr_size + prop.page_size);
 
-	uint8_t dev_addr_with_data_addr = m_dev_addr;
-	switch(prop.addr_size)
+	uint8_t dev_addr_with_data_addr;
+	std::array<uint8_t, 2> addr_data;
+	if( ! get_io_addr(addr, &dev_addr_with_data_addr, &addr_data) )
 	{
-		case 1:
-		{
-			//TODO: encode A8-A10 for 4-16kbit mem in the low bits of m_dev_addr
-			//use prop.addr_bits and stuff the high bits into low bits of m_dev_addr
-			const uint8_t bits_to_pack = prop.addr_bits - 8;
-			if(bits_to_pack != 0)
-			{
-				SPDLOG_ERROR("M24C04-DRE / M24C08-DRE / M24C16-DRE not supported yet");
-				return false;
-			}
-			else
-			{
-				dev_addr_with_data_addr = m_dev_addr;
-			}
-
-			write_buf.push_back( (addr & 0x00FFU) >> 0);
-			break;
-		}
-		case 2:
-		{
-			// we never pack addr bits in for a two byte addr
-			dev_addr_with_data_addr = m_dev_addr;
-
-			write_buf.push_back( (addr & 0xFF00U) >> 8);
-			write_buf.push_back( (addr & 0x00FFU) >> 0);
-			break;
-		}
-		default:
-		{
-			SPDLOG_ERROR("Invalid addr_size");
-			return false;
-		}
+		return false;
 	}
+
+	write_buf.insert(write_buf.end(), addr_data.data(), addr_data.data() + prop.addr_size);
 	write_buf.insert(write_buf.end(), static_cast<uint8_t const *>(buf), static_cast<uint8_t const *>(buf)+size);
 	
 	std::array<i2c_msg, 1> trx {};

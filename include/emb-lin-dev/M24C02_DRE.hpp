@@ -28,15 +28,7 @@ public:
 	bool read_id_code(Device_id_code* const out_buf) override;
 	bool lock_id_page() override;
 	bool get_id_lock_status(bool* const is_locked) override;
-
-	long get_idpage_addr() const
-	{
-		return (unsigned(m_dev_addr) & 0x07U) | 0x58U;
-	}
-
-	bool read(const size_t addr, void* buf, const size_t size);
-    bool write(const size_t addr, const void* buf, const size_t size);
- 
+	 
 protected:
 
 	typedef std::array<uint8_t, 16+1> Writebuffer;

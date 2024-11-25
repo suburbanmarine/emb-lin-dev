@@ -88,8 +88,8 @@ public:
 		return m_probed_properties.value().addr_size;
 	}
     
-	virtual bool read(const size_t addr, void* buf, const size_t size) = 0;
-    virtual bool write(const size_t addr, const void* buf, const size_t size) = 0;
+	virtual bool read(const size_t addr, void* buf, const size_t size);
+    virtual bool write(const size_t addr, const void* buf, const size_t size);
 
     virtual bool fill(const uint8_t val);
     virtual bool erase()
@@ -100,6 +100,8 @@ public:
 protected:
 	std::optional<M24XXX_DRE_ID> m_probed_id;
 	std::optional<M24XXX_DRE_Properties> m_probed_properties;
+
+	bool get_io_addr(const size_t addr, uint8_t* const dev_addr_with_data_addr, std::array<uint8_t, 2>* const addr_data);
 
 	virtual bool write_page(const size_t addr, const void* buf, const size_t size);
 	virtual bool wait_write_complete();
