@@ -36,17 +36,8 @@ public:
 
 	bool read(const size_t addr, void* buf, const size_t size);
     bool write(const size_t addr, const void* buf, const size_t size);
-
-    bool fill(const uint8_t val);
-    bool erase()
-    {
-    	return fill(0xFF);
-    }
-    
+ 
 protected:
 
 	typedef std::array<uint8_t, 16+1> Writebuffer;
-
-	// write up to 16b that does not cross a page boundary
-	bool write_page(const size_t addr, const void* buf, const size_t size);
 };

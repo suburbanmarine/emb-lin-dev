@@ -38,6 +38,7 @@ public:
 		size_t  size;
 		uint8_t page_size;
 		uint8_t addr_size;
+		uint8_t addr_bits;
 	};
 
 	typedef std::array<uint8_t, 3> Device_id_code;
@@ -90,8 +91,8 @@ public:
 	virtual bool read(const size_t addr, void* buf, const size_t size) = 0;
     virtual bool write(const size_t addr, const void* buf, const size_t size) = 0;
 
-    bool fill(const uint8_t val);
-    bool erase()
+    virtual bool fill(const uint8_t val);
+    virtual bool erase()
     {
     	return fill(0xFF);
     }
@@ -100,6 +101,6 @@ protected:
 	std::optional<M24XXX_DRE_ID> m_probed_id;
 	std::optional<M24XXX_DRE_Properties> m_probed_properties;
 
-	virtual bool write_page(const size_t addr, const void* buf, const size_t size) = 0;
+	virtual bool write_page(const size_t addr, const void* buf, const size_t size);
 	virtual bool wait_write_complete();
 };
