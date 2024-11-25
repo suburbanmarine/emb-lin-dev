@@ -22,7 +22,6 @@
 #include <cstddef>
 #include <cstdint>
 
-
 class M24XXX_DRE_base : public I2C_dev_base
 {
 public:
