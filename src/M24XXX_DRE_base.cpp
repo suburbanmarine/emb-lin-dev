@@ -49,7 +49,7 @@ M24XXX_DRE_base::~M24XXX_DRE_base()
 
 }
 
-bool M24XXX_DRE_base::probe_eeprom(M24XXX_DRE_ID* const out_id)
+bool M24XXX_DRE_base::probe(M24XXX_DRE_ID* const out_id)
 {
 	Device_id_code buf;
 	if( ! read_id_code(&buf) )
@@ -158,14 +158,16 @@ bool M24XXX_DRE_base::write_id_page(const std::vector<uint8_t>& id_page)
 		return false;
 	}
 
+	uint8_t dev_addr_with_data_addr;
+	std::array<uint8_t, 2> addr_data;
+	if( ! get_io_addr(0, &dev_addr_with_data_addr, &addr_data) )
+	{
+		return false;
+	}
+
 	std::vector<uint8_t> buf;
 	buf.reserve(prop.addr_size + prop.page_size);
-
-
-	for(size_t i = 0; i < prop.addr_size; i++)
-	{
-		buf.push_back(0);
-	}
+	buf.insert(buf.end(), addr_data.data(), addr_data.data() + prop.addr_size);
 	buf.insert(buf.end(), id_page.begin(), id_page.end());
 
 	std::array<i2c_msg, 1> trx {};
