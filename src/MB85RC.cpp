@@ -46,12 +46,12 @@ bool MB85RC::read_device_id(uint32_t* const out_id)
 	std::array<uint8_t, 3> resp;
 
 	std::array<i2c_msg, 2> trx {};
-	trx[0].addr  = 0x7C;
+	trx[0].addr  = 0x7C; // ie 0xF8
 	trx[0].flags = 0;
 	trx[0].len   = cmd.size();
 	trx[0].buf   = cmd.data();
 
-	trx[1].addr  = 0x7C;
+	trx[1].addr  = 0x7C; // ie 0xF9
 	trx[1].flags = I2C_M_RD;
 	trx[1].len   = resp.size();
 	trx[1].buf   = resp.data();
@@ -88,7 +88,7 @@ bool MB85RC::sleep()
 	cmd[0] = m_dev_addr << 1;
 
 	std::array<i2c_msg, 2> trx {};
-	trx[0].addr  = 0x7C;
+	trx[0].addr  = 0x7C; // ie 0xF8
 	trx[0].flags = 0;
 	trx[0].len   = cmd.size();
 	trx[0].buf   = cmd.data();

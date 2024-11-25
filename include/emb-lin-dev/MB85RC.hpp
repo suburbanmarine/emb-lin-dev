@@ -24,7 +24,7 @@
 class MB85RC : public I2C_dev_base
 {
 public:
-	// NXP says 12bit mf, 9bit part id, 3bit die rev
+	// NXP says 12bit mf, 9bit part id, 3bit die rev in doc UM10204
 	// ramXeed says 12bit mf, 4bit density, 8bit proprietary use
 	enum class DEVICE_ID_CODE : uint32_t
 	{
