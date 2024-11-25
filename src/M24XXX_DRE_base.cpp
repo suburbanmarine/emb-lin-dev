@@ -87,7 +87,6 @@ bool M24XXX_DRE_base::read_id_code(Device_id_code* const out_buf)
 {
 	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
 
-
 	std::array<uint8_t, 2> addr_data;
 	addr_data.fill(0);
 
@@ -179,12 +178,14 @@ bool M24XXX_DRE_base::write_id_page(const std::vector<uint8_t>& id_page)
 	idat.msgs  = trx.data();
 	idat.nmsgs = trx.size();
 
-	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
-	
-	if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
 	{
-		SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
-		return false;
+		std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+		
+		if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
+		{
+			SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
+			return false;
+		}
 	}
 
 	if( ! wait_write_complete() )
@@ -400,12 +401,14 @@ bool M24XXX_DRE_base::write_page(const size_t addr, const void* buf, const size_
 	idat.msgs  = trx.data();
 	idat.nmsgs = trx.size();
 
-	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
-
-	if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
 	{
-		SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
-		return false;
+		std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+
+		if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
+		{
+			SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
+			return false;
+		}
 	}
 	
 	if( ! wait_write_complete() )
@@ -442,9 +445,13 @@ bool M24XXX_DRE_base::wait_write_complete()
 
 	for(size_t i = 0; i < max_write_ms; i++)
 	{
-		std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+		int ioctl_ret = 0;
+		{
+			std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+			ioctl_ret = ioctl(m_bus->get_fd(), I2C_RDWR, &idat);
+		}
 
-		if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
+		if(ioctl_ret < 0)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
