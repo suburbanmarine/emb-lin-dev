@@ -26,7 +26,7 @@ extern "C"
 
 #include <algorithm>
 
-// density_code -> size
+// density_code -> [size, pagesize, addrsize, addrbits]
 const std::map<uint8_t, M24XXX_DRE_base::M24XXX_DRE_Properties> M24XXX_DRE_base::DEVICE_PROPERTIES = {
 	{0x08U,   {256,  16, 1, 8}},
 	{0x09U,   {512,  16, 1, 9}},

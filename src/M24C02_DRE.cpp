@@ -91,34 +91,6 @@ bool M24C02_DRE::read_id_page(Pagebuffer* const out_buf)
 
 	return true;
 }
-bool M24C02_DRE::read_id_code(Device_id_code* const out_buf)
-{
-	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
-
-	std::array<uint8_t, 1> addr_data = {{0x00}};
-
-	std::array<i2c_msg, 2> trx {};
-	trx[0].addr  = get_idpage_addr();
-	trx[0].flags = 0;
-	trx[0].len   = addr_data.size();
-	trx[0].buf   = addr_data.data();
-
-	trx[1].addr  = get_idpage_addr();
-	trx[1].flags = I2C_M_RD;
-	trx[1].len   = out_buf->size();
-	trx[1].buf   = out_buf->data();
-
-	i2c_rdwr_ioctl_data idat {};
-	idat.msgs  = trx.data();
-	idat.nmsgs = trx.size();
-	if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
-	{
-		SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
-		return false;
-	}
-
-	return true;
-}
 bool M24C02_DRE::lock_id_page()
 {
 	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);

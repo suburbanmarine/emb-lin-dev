@@ -22,13 +22,12 @@ public:
 
 	M24C02_DRE(const std::shared_ptr<I2C_bus_base>& bus, const long id);
 
-	bool write_id_page(const Pagebuffer& data);
-	bool read_id_page(Pagebuffer* const out_buf);
+	[[deprecated]] bool write_id_page(const Pagebuffer& data);
+	[[deprecated]] bool read_id_page(Pagebuffer* const out_buf);
 	
-	bool read_id_code(Device_id_code* const out_buf) override;
 	bool lock_id_page() override;
 	bool get_id_lock_status(bool* const is_locked) override;
-	 
+
 protected:
 
 	typedef std::array<uint8_t, 16+1> Writebuffer;
