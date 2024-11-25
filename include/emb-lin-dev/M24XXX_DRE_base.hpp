@@ -55,6 +55,11 @@ public:
 	M24XXX_DRE_base(const std::shared_ptr<I2C_bus_base>& bus, const long id);
 	~M24XXX_DRE_base() override;
 
+	static constexpr std::chrono::milliseconds get_max_write_time()
+	{
+		return PAGE_WRITE_TIME;
+	}
+
 	virtual bool probe_eeprom(M24XXX_DRE_ID* const out_id);
 	virtual bool read_id_code(Device_id_code* const out_buf);
 	virtual bool read_id_page(std::vector<uint8_t>* const out_id_page);
@@ -82,7 +87,19 @@ public:
 		return m_probed_properties.value().addr_size;
 	}
     
+	virtual bool read(const size_t addr, void* buf, const size_t size) = 0;
+    virtual bool write(const size_t addr, const void* buf, const size_t size) = 0;
+
+    bool fill(const uint8_t val);
+    bool erase()
+    {
+    	return fill(0xFF);
+    }
+
 protected:
 	std::optional<M24XXX_DRE_ID> m_probed_id;
-	std::optional<M24XXX_DRE_Properties> m_probed_properties;	
+	std::optional<M24XXX_DRE_Properties> m_probed_properties;
+
+	virtual bool write_page(const size_t addr, const void* buf, const size_t size) = 0;
+	virtual bool wait_write_complete();
 };

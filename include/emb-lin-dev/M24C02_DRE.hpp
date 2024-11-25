@@ -29,15 +29,9 @@ public:
 	bool lock_id_page() override;
 	bool get_id_lock_status(bool* const is_locked) override;
 
-
 	long get_idpage_addr() const
 	{
 		return (unsigned(m_dev_addr) & 0x07U) | 0x58U;
-	}
-
-	static constexpr std::chrono::milliseconds get_max_write_time()
-	{
-		return std::chrono::milliseconds(4);
 	}
 
 	bool read(const size_t addr, void* buf, const size_t size);
@@ -55,6 +49,4 @@ protected:
 
 	// write up to 16b that does not cross a page boundary
 	bool write_page(const size_t addr, const void* buf, const size_t size);
-
-	bool wait_write_complete();
 };
