@@ -15,17 +15,20 @@
 
 #include <array>
 
-class M24C02_DRE : public M24XXX_DRE_base<256, 16, 1>
+class M24C02_DRE : public M24XXX_DRE_base
 {
 public:
+	typedef std::array<uint8_t, 16> Pagebuffer;
+
 	M24C02_DRE(const std::shared_ptr<I2C_bus_base>& bus, const long id);
 
 	bool write_id_page(const Pagebuffer& data);
 	bool read_id_page(Pagebuffer* const out_buf);
-	bool read_id_code(Device_id_code* const out_buf);
-	bool lock_id_page();
+	
+	bool read_id_code(Device_id_code* const out_buf) override;
+	bool lock_id_page() override;
+	bool get_id_lock_status(bool* const is_locked) override;
 
-	bool get_id_lock_status(bool* const is_locked);
 
 	long get_idpage_addr() const
 	{
@@ -47,6 +50,8 @@ public:
     }
     
 protected:
+
+	typedef std::array<uint8_t, 16+1> Writebuffer;
 
 	// write up to 16b that does not cross a page boundary
 	bool write_page(const size_t addr, const void* buf, const size_t size);

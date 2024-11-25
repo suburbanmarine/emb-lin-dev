@@ -15,8 +15,13 @@
 
 #include <array>
 
-class M24256_DRE : public M24XXX_DRE_base<32768, 64, 2>
+class M24256_DRE : public M24XXX_DRE_base
 {
 public:
+	typedef std::array<uint8_t, 128> Pagebuffer;
+
 	M24256_DRE(const std::shared_ptr<I2C_bus_base>& bus, const long id);
+
+protected:
+	typedef std::array<uint8_t, 128+2> Writebuffer;
 };

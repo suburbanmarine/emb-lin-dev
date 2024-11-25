@@ -15,18 +15,20 @@
 
 #include <array>
 
-class M24C64_DRE : public M24XXX_DRE_base<8192, 32, 2>
+class M24C64_DRE : public M24XXX_DRE_base
 {
 public:
+
+	typedef std::array<uint8_t, 32> Pagebuffer;
 
 	M24C64_DRE(const std::shared_ptr<I2C_bus_base>& bus, const long id);
 
 	bool write_id_page(const Pagebuffer& data);
 	bool read_id_page(Pagebuffer* const out_buf);
-	bool read_id_code(Device_id_code* const out_buf);
-	bool lock_id_page();
-
-	bool get_id_lock_status(bool* const is_locked);
+	
+	bool read_id_code(Device_id_code* const out_buf) override;
+	bool lock_id_page() override;
+	bool get_id_lock_status(bool* const is_locked) override;
 
 	static constexpr std::chrono::milliseconds get_max_write_time()
 	{
@@ -44,6 +46,8 @@ public:
 
 protected:
   
+	typedef std::array<uint8_t, 32+2> Writebuffer;
+
 	// write up to 32b that does not cross a page boundary
 	bool write_page(const size_t addr, const void* buf, const size_t size);
 

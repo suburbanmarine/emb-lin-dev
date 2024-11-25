@@ -12,100 +12,77 @@
 #pragma once
 
 #include "emb-lin-dev/I2C_dev_base.hpp"
+#include <map>
 
 #include <array>
+#include <chrono>
+#include <optional>
+#include <vector>
+
 #include <cstddef>
 #include <cstdint>
 
-struct M24XXX_DRE_ID
-{
-	uint8_t mf_code;
-	uint8_t fam_code;
-	uint8_t density_code; // so far, 2^density_code == size, but it could change
-};
-
-struct M24XXX_DRE_Properties
-{
-	size_t size;
-	size_t page_size;
-	size_t addr_size;
-};
 
 class M24XXX_DRE_base : public I2C_dev_base
 {
 public:
+	struct M24XXX_DRE_ID
+	{
+		uint8_t mf_code;
+		uint8_t fam_code;
+		uint8_t density_code; // so far, 2^density_code == size, but it could change
+	};
+
+	struct M24XXX_DRE_Properties
+	{
+		size_t  size;
+		uint8_t page_size;
+		uint8_t addr_size;
+	};
+
+	typedef std::array<uint8_t, 3> Device_id_code;
 
 	// For Device ID code
 	static constexpr size_t MF_CODE     = 0x20U; // ST
 	static constexpr size_t FAMILY_CODE = 0xE0U; // M24 series
 
-	// density_code -> size
-	static constexpr std::map<size_t, size_t> DEVICE_SIZE = {
-		{0x08,   256},
-		{0x09,   512},
-		{0x0A,  1024},
-		{0x0B,  2048},
-		{0x0C,  4096},
-		{0x0D,  8192},
-		{0x0E, 16384},
-		{0x0F, 32768},
-		{0x10, 65536}
-	};
+	// density_code -> size/page_size/addr_size
+	static const std::map<uint8_t, M24XXX_DRE_Properties> DEVICE_PROPERTIES;
 
-	// density_code -> page_size
-	static constexpr std::map<size_t, size_t> PAGE_SIZE = {
-		{0x08,  16},
-		{0x09,  16},
-		{0x0A,  16},
-		{0x0B,  16},
-		{0x0C,  32},
-		{0x0D,  32},
-		{0x0E,  64},
-		{0x0F,  64},
-		{0x10, 128}
-	};
+	static constexpr std::chrono::milliseconds BYTE_WRITE_TIME{4};
+	static constexpr std::chrono::milliseconds PAGE_WRITE_TIME{4};
 
-	// density_code -> addr_size
-	static constexpr std::map<size_t, size_t> ADDR_SIZE = {
-		{0x08, 1},
-		{0x09, 1}, // A8 sent as i2c addr b1 (b0 is R/nW bit)
-		{0x0A, 1}, // A9..A8 sent as i2c addr b2..b1
-		{0x0B, 1}, // A10..A8 sent as i2c addr b3..b1
-		{0x0C, 2},
-		{0x0D, 2},
-		{0x0E, 2},
-		{0x0F, 2},
-		{0x10, 2}
-	};
+	M24XXX_DRE_base(const std::shared_ptr<I2C_bus_base>& bus, const long id);
+	~M24XXX_DRE_base() override;
 
-	static constexpr std::chrono::milliseconds BYTE_WRITE_TIME(4);
-	static constexpr std::chrono::milliseconds PAGE_WRITE_TIME(4);
-
-	M24XXX_DRE_base(const M24XXX_DRE_Properties& prop, const std::shared_ptr<I2C_bus_base>& bus, const long id) : I2C_dev_base(bus, id)
-	{
-
-	}
+	virtual bool probe_eeprom(M24XXX_DRE_ID* const out_id);
+	virtual bool read_id_code(Device_id_code* const out_buf);
+	virtual bool read_id_page(std::vector<uint8_t>* const out_id_page);
+	virtual bool write_id_page(const std::vector<uint8_t>& id_page);
+	virtual bool lock_id_page();
+	virtual bool get_id_lock_status(bool* const is_locked);
 
 	long get_idpage_addr() const
 	{
 		return (unsigned(m_dev_addr) & 0x07U) | 0x58U;
 	}
 
-	static constexpr size_t get_size()
+	size_t get_size() const
 	{
-		return SIZE;
+		return m_probed_properties.value().size;
 	}
 
-	static constexpr size_t get_pagesize()
+	size_t get_pagesize() const
 	{
-		return PAGE_SIZE;
+		return m_probed_properties.value().page_size;
 	}
 
-	static constexpr size_t get_addrsize()
+	size_t get_addrsize() const
 	{
-		return ADDR_SIZE;
+		return m_probed_properties.value().addr_size;
 	}
     
 protected:
-	typedef std::array<uint8_t, PAGE_SIZE + ADDR_SIZE> Writebuffer;
+	std::optional<M24XXX_DRE_ID> m_probed_id;
+	std::optional<M24XXX_DRE_Properties> m_probed_properties;	
 };
