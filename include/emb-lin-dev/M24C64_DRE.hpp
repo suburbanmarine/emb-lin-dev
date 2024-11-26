@@ -11,11 +11,11 @@
 
 #pragma once
 
-#include "emb-lin-dev/M24XXX_DRE_base.hpp"
+#include "emb-lin-dev/M24XXX_DRE.hpp"
 
 #include <array>
 
-class M24C64_DRE : public M24XXX_DRE_base
+class M24C64_DRE : public M24XXX_DRE
 {
 public:
 

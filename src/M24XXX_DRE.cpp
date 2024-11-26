@@ -9,7 +9,7 @@
  * SPDX-License-Identifier: LGPL-3.0-only
 */
 
-#include "emb-lin-dev/M24XXX_DRE_base.hpp"
+#include "emb-lin-dev/M24XXX_DRE.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -27,7 +27,7 @@ extern "C"
 #include <algorithm>
 
 // density_code -> [size, pagesize, addrsize, addrbits]
-const std::map<uint8_t, M24XXX_DRE_base::M24XXX_DRE_Properties> M24XXX_DRE_base::DEVICE_PROPERTIES = {
+const std::map<uint8_t, M24XXX_DRE::M24XXX_DRE_Properties> M24XXX_DRE::DEVICE_PROPERTIES = {
 	{0x08U,   {256,  16, 1, 8}},
 	{0x09U,   {512,  16, 1, 9}},
 	{0x0AU,  {1024,  16, 1, 10}},
@@ -39,17 +39,17 @@ const std::map<uint8_t, M24XXX_DRE_base::M24XXX_DRE_Properties> M24XXX_DRE_base:
 	{0x10U, {65536, 128, 2, 16}}
 };
 
-M24XXX_DRE_base::M24XXX_DRE_base(const std::shared_ptr<I2C_bus_base>& bus, const long id) : I2C_dev_base(bus, id)
+M24XXX_DRE::M24XXX_DRE(const std::shared_ptr<I2C_bus_base>& bus, const long id) : I2C_dev_base(bus, id)
 {
 
 }
 
-M24XXX_DRE_base::~M24XXX_DRE_base()
+M24XXX_DRE::~M24XXX_DRE()
 {
 
 }
 
-bool M24XXX_DRE_base::probe(M24XXX_DRE_ID* const out_id)
+bool M24XXX_DRE::probe(M24XXX_DRE_ID* const out_id)
 {
 	Device_id_code buf;
 	if( ! read_id_code(&buf) )
@@ -83,7 +83,7 @@ bool M24XXX_DRE_base::probe(M24XXX_DRE_ID* const out_id)
 
 	return true;
 }
-bool M24XXX_DRE_base::read_id_code(Device_id_code* const out_buf)
+bool M24XXX_DRE::read_id_code(Device_id_code* const out_buf)
 {
 	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
 
@@ -115,7 +115,7 @@ bool M24XXX_DRE_base::read_id_code(Device_id_code* const out_buf)
 
 	return true;
 }
-bool M24XXX_DRE_base::read_id_page(std::vector<uint8_t>* const out_id_page)
+bool M24XXX_DRE::read_id_page(std::vector<uint8_t>* const out_id_page)
 {
 	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
 
@@ -149,7 +149,7 @@ bool M24XXX_DRE_base::read_id_page(std::vector<uint8_t>* const out_id_page)
 
 	return true;
 }
-bool M24XXX_DRE_base::write_id_page(const std::vector<uint8_t>& id_page)
+bool M24XXX_DRE::write_id_page(const std::vector<uint8_t>& id_page)
 {
 	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
 
@@ -199,17 +199,70 @@ bool M24XXX_DRE_base::write_id_page(const std::vector<uint8_t>& id_page)
 	return true;
 }
 
-bool M24XXX_DRE_base::lock_id_page()
+bool M24XXX_DRE::lock_id_page()
 {
 	return false;
 }
 
-bool M24XXX_DRE_base::get_id_lock_status(bool* const is_locked)
+bool M24XXX_DRE::get_id_lock_status(bool* const is_locked)
 {
 	return false;
+	
+	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+
+	std::array<uint8_t, 1> cmd;
+	cmd[0] = 0x00;
+
+	// probe lock bit, then reset
+	// it would be better to do this as a combined operation right after the NACK, and just be a S/P toggle pair with no data
+	// but linux does not let us express that well
+	// 0 len buffers are rejected by the driver
+	// maybe should bit bang it...
+	std::array<i2c_msg, 1> trx {};
+	trx[0].addr  = get_idpage_addr();
+	trx[0].flags = 0;
+	trx[0].len   = cmd.size();
+	trx[0].buf   = cmd.data();
+
+	i2c_rdwr_ioctl_data idat {};
+	idat.msgs  = trx.data();
+	idat.nmsgs = trx.size();
+	int ret = ioctl(m_bus->get_fd(), I2C_RDWR, &idat);
+	if(ret < 0)
+	{
+		// TODO: tell missing eeprom from locked eeprom, check errno?
+		if(is_locked)
+		{
+			*is_locked = true;
+		}
+	}
+	else
+	{
+		if(is_locked)
+		{
+			*is_locked = false;
+		}
+	}
+
+	// reset
+	// it would be better to do this as a combined operation right after the NACK, and just be a S/P toggle pair with no data
+	// but linux does not let us express that well
+	// 0 len buffers are rejected by the driver
+	// maybe should bit bang it...
+	// reading seems safe enough. The S bit resets the state machine.
+	trx[0].addr  = get_idpage_addr();
+	trx[0].flags = I2C_M_RD;
+	trx[0].len   = cmd.size();
+	trx[0].buf   = cmd.data();
+	if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
+	{
+		SPDLOG_WARN("Error when resetting M24C64_DRE");
+	}
+
+	return true;
 }
 
-bool M24XXX_DRE_base::read(const size_t addr, void* buf, const size_t size) 
+bool M24XXX_DRE::read(const size_t addr, void* buf, const size_t size) 
 {
 	if( (addr + size) > get_size() )
 	{
@@ -253,7 +306,7 @@ bool M24XXX_DRE_base::read(const size_t addr, void* buf, const size_t size)
 
 	return true;
 }
-bool M24XXX_DRE_base::write(const size_t addr, const void* buf, const size_t size)
+bool M24XXX_DRE::write(const size_t addr, const void* buf, const size_t size)
 {		
 	if( (addr + size) > get_size() )
 	{
@@ -261,7 +314,7 @@ bool M24XXX_DRE_base::write(const size_t addr, const void* buf, const size_t siz
 		return false;
 	}
 
-	SPDLOG_DEBUG("M24XXX_DRE_base::write 0x{:02X} {:d}@0x{:04X}", m_dev_addr, size, addr);
+	SPDLOG_DEBUG("M24XXX_DRE::write 0x{:02X} {:d}@0x{:04X}", m_dev_addr, size, addr);
 
 	size_t num_written = 0;
 	const size_t pagesize = get_pagesize();
@@ -296,7 +349,7 @@ bool M24XXX_DRE_base::write(const size_t addr, const void* buf, const size_t siz
 	return true;
 }
 
-bool M24XXX_DRE_base::fill(const uint8_t val)
+bool M24XXX_DRE::fill(const uint8_t val)
 {
 	const size_t size     = get_size();
 	const size_t pagesize = get_pagesize();
@@ -314,7 +367,7 @@ bool M24XXX_DRE_base::fill(const uint8_t val)
 	return true;
 }
 
-bool M24XXX_DRE_base::get_io_addr(const size_t addr, uint8_t* const dev_addr_with_data_addr, std::array<uint8_t, 2>* const addr_data)
+bool M24XXX_DRE::get_io_addr(const size_t addr, uint8_t* const dev_addr_with_data_addr, std::array<uint8_t, 2>* const addr_data)
 {
 	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
 
@@ -360,7 +413,7 @@ bool M24XXX_DRE_base::get_io_addr(const size_t addr, uint8_t* const dev_addr_wit
 	return true;
 }
 
-bool M24XXX_DRE_base::write_page(const size_t addr, const void* buf, const size_t size)
+bool M24XXX_DRE::write_page(const size_t addr, const void* buf, const size_t size)
 {
 	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
 
@@ -369,13 +422,13 @@ bool M24XXX_DRE_base::write_page(const size_t addr, const void* buf, const size_
 	const size_t page_addr = (addr / get_pagesize()) * get_pagesize();
 	if( (addr + size) > (page_addr + get_pagesize()) )
 	{
-		SPDLOG_ERROR("M24XXX_DRE_base::write_page not alligned: {:d}@0x{:04X}", size, addr);
+		SPDLOG_ERROR("M24XXX_DRE::write_page not alligned: {:d}@0x{:04X}", size, addr);
 		return false;
 	}
 
 	if( size > get_pagesize() )
 	{
-		SPDLOG_ERROR("M24XXX_DRE_base::write_page size larger than get_pagesize()");
+		SPDLOG_ERROR("M24XXX_DRE::write_page size larger than get_pagesize()");
 		return false;
 	}
 
@@ -422,7 +475,7 @@ bool M24XXX_DRE_base::write_page(const size_t addr, const void* buf, const size_
 	return true;
 }
 
-bool M24XXX_DRE_base::wait_write_complete()
+bool M24XXX_DRE::wait_write_complete()
 {
 #if 1
 	std::this_thread::sleep_for(get_max_write_time());

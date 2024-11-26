@@ -22,7 +22,7 @@
 #include <cstddef>
 #include <cstdint>
 
-class M24XXX_DRE_base : public I2C_dev_base
+class M24XXX_DRE : public I2C_dev_base
 {
 public:
 	struct M24XXX_DRE_ID
@@ -52,8 +52,8 @@ public:
 	static constexpr std::chrono::milliseconds BYTE_WRITE_TIME{4};
 	static constexpr std::chrono::milliseconds PAGE_WRITE_TIME{4};
 
-	M24XXX_DRE_base(const std::shared_ptr<I2C_bus_base>& bus, const long id);
-	~M24XXX_DRE_base() override;
+	M24XXX_DRE(const std::shared_ptr<I2C_bus_base>& bus, const long id);
+	~M24XXX_DRE() override;
 
 	static constexpr std::chrono::milliseconds get_max_write_time()
 	{

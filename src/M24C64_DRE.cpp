@@ -27,7 +27,7 @@ extern "C"
 #include <array>
 #include <algorithm>
 
-M24C64_DRE::M24C64_DRE(const std::shared_ptr<I2C_bus_base>& bus, const long id) : M24XXX_DRE_base(bus, id)
+M24C64_DRE::M24C64_DRE(const std::shared_ptr<I2C_bus_base>& bus, const long id) : M24XXX_DRE(bus, id)
 {
 
 }
