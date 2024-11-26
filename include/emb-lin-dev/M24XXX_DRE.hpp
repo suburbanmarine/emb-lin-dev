@@ -12,10 +12,10 @@
 #pragma once
 
 #include "emb-lin-dev/I2C_dev_base.hpp"
-#include <map>
 
 #include <array>
 #include <chrono>
+#include <map>
 #include <optional>
 #include <vector>
 
