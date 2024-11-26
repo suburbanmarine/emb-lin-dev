@@ -64,11 +64,11 @@ bool TCAL9539::set_pin_input(const uint16_t reg)
 {
 	return set_reg_16(uint8_t(CMD_CODE::CONF0), uint8_t(CMD_CODE::CONF1), reg);
 }
-bool set_pu_pd_en(const uint16_t reg)
+bool TCAL9539::set_pu_pd_en(const uint16_t reg)
 {
 	return set_reg_16(uint8_t(CMD_CODE::PU_PD_EN0), uint8_t(CMD_CODE::PU_PD_EN1), reg);
 }
-bool set_pu_pd(const uint16_t reg)
+bool TCAL9539::set_pu_pd(const uint16_t reg)
 {
 	return set_reg_16(uint8_t(CMD_CODE::PU_PD0), uint8_t(CMD_CODE::PU_PD1), reg);
 }

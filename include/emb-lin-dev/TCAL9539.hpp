@@ -34,8 +34,8 @@ public:
 		INPUT_LATCH1 = 0x45U,
 		PU_PD_EN0    = 0x46U,
 		PU_PD_EN1    = 0x47U,
-		PU_PD_0      = 0x48U,
-		PU_PD_1      = 0x49U,
+		PU_PD0       = 0x48U,
+		PU_PD1       = 0x49U,
 		OUTPUT_CONF  = 0x4FU
 	};
 
