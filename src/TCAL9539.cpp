@@ -35,45 +35,26 @@ TCAL9539::~TCAL9539()
 
 bool TCAL9539::read_input(uint16_t* const out_reg)
 {
-	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
-
-	if( ! m_bus->set_device_id(m_dev_addr) )
-	{
-		return false;
-	}
-
-	int32_t ret = i2c_smbus_read_byte_data(m_bus->get_fd(), uint8_t(CMD_CODE::IN0));
-	if(ret < 0)
-	{
-		return false;
-	}
-
-	ret = i2c_smbus_read_byte_data(m_bus->get_fd(), uint8_t(CMD_CODE::IN1));
-	if(ret < 0)
-	{
-		return false;
-	}
-
-	return true;
+	return get_reg_16(uint8_t(CMD_CODE::IN0), out_reg);
 }
 bool TCAL9539::write_output(const uint16_t reg)
 {
-	return set_reg_16(uint8_t(CMD_CODE::OUT0), uint8_t(CMD_CODE::OUT1), reg);
+	return set_reg_16(uint8_t(CMD_CODE::OUT0), reg);
 }
 bool TCAL9539::set_pin_input(const uint16_t reg)
 {
-	return set_reg_16(uint8_t(CMD_CODE::CONF0), uint8_t(CMD_CODE::CONF1), reg);
+	return set_reg_16(uint8_t(CMD_CODE::CONF0), reg);
 }
 bool TCAL9539::set_pu_pd_en(const uint16_t reg)
 {
-	return set_reg_16(uint8_t(CMD_CODE::PU_PD_EN0), uint8_t(CMD_CODE::PU_PD_EN1), reg);
+	return set_reg_16(uint8_t(CMD_CODE::PU_PD_EN0), reg);
 }
 bool TCAL9539::set_pu_pd(const uint16_t reg)
 {
-	return set_reg_16(uint8_t(CMD_CODE::PU_PD0), uint8_t(CMD_CODE::PU_PD1), reg);
+	return set_reg_16(uint8_t(CMD_CODE::PU_PD0), reg);
 }
 
-bool TCAL9539::set_reg_16(const uint8_t a_low, const uint8_t a_high, const uint16_t reg)
+bool TCAL9539::set_reg_16(const uint8_t a_low, const uint16_t reg)
 {
 	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
 
@@ -82,16 +63,33 @@ bool TCAL9539::set_reg_16(const uint8_t a_low, const uint8_t a_high, const uint1
 		return false;
 	}
 
-	int32_t ret = i2c_smbus_write_byte_data(m_bus->get_fd(), a_low, (reg & 0x00FFU) >> 0);
+	int32_t ret = i2c_smbus_write_word_data(m_bus->get_fd(), a_low, reg);
 	if(ret < 0)
 	{
 		return false;
 	}
 
-	ret = i2c_smbus_write_byte_data(m_bus->get_fd(), a_high, (reg & 0xFF00U) >> 8);
+	return true;	
+}
+
+bool TCAL9539::get_reg_16(const uint8_t a_low, uint16_t * const out_reg)
+{
+	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+
+	if( ! m_bus->set_device_id(m_dev_addr) )
+	{
+		return false;
+	}
+
+	int32_t ret = i2c_smbus_read_word_data(m_bus->get_fd(), a_low);
 	if(ret < 0)
 	{
 		return false;
+	}
+
+	if(out_reg)
+	{
+		*out_reg = ret;
 	}
 
 	return true;	

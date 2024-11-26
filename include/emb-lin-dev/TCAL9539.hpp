@@ -48,5 +48,6 @@ public:
 	bool set_pu_pd(const uint16_t reg);
 
 protected:
-	bool set_reg_16(const uint8_t a_low, const uint8_t a_high, const uint16_t reg);
+	bool set_reg_16(const uint8_t a_low, const uint16_t reg);
+	bool get_reg_16(const uint8_t a_low, uint16_t * const out_reg);
 };
