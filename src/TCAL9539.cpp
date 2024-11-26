@@ -54,6 +54,68 @@ bool TCAL9539::set_pu_pd(const uint16_t reg)
 	return set_reg_16(uint8_t(CMD_CODE::PU_PD0), reg);
 }
 
+bool TCAL9539::set_line(const unsigned int idx, const int value)
+{
+	if(idx > get_num_lines())
+	{
+		return false;
+	}
+
+	uint16_t reg;
+	if( ! read_input(&reg) )
+	{
+		return false;
+	}
+
+	if(value)
+	{
+		reg |= (1U << idx);
+	}
+	else
+	{
+		reg &= ~(1U << idx);
+	}
+
+	return write_output(reg);	
+}
+bool TCAL9539::get_line(const unsigned int idx, int* const out_value)
+{
+	if(idx > get_num_lines())
+	{
+		return false;
+	}
+
+	uint16_t reg;
+	if( ! read_input(&reg) )
+	{
+		return false;
+	}
+
+	*out_value = (reg & (1U << idx)) ? (1) : (0);
+
+	return true;
+}
+
+bool TCAL9539::set_all_lines(const uint64_t value)
+{
+	return write_output(value & 0xFFFFU);
+}
+bool TCAL9539::get_all_lines(uint64_t* const out_value)
+{
+	uint16_t reg;
+	if( ! read_input(&reg) )
+	{
+		return false;
+	}
+
+	if(out_value)
+	{
+		*out_value = reg;
+	}
+
+	return true;
+}
+
 bool TCAL9539::set_reg_16(const uint8_t a_low, const uint16_t reg)
 {
 	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);

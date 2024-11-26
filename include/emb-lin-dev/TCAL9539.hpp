@@ -12,8 +12,9 @@
 #pragma once
 
 #include "emb-lin-dev/I2C_dev_base.hpp"
+#include "emb-lin-dev/gpio_base.hpp"
 
-class TCAL9539 : public I2C_dev_base
+class TCAL9539 : public I2C_dev_base, public gpio_base
 {
 public:
 	TCAL9539(const std::shared_ptr<I2C_bus_base>& bus, const long id);
@@ -46,6 +47,19 @@ public:
 
 	bool set_pu_pd_en(const uint16_t reg);
 	bool set_pu_pd(const uint16_t reg);
+
+
+	// gpio_base
+	bool set_line(const unsigned int idx, const int value) override;
+	bool get_line(const unsigned int idx, int* const out_value) override;
+
+	bool set_all_lines(const uint64_t value) override;
+	bool get_all_lines(uint64_t* const out_value) override;
+
+	size_t get_num_lines() const
+	{
+		return 16;
+	}
 
 protected:
 	bool set_reg_16(const uint8_t a_low, const uint16_t reg);
