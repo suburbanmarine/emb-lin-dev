@@ -27,9 +27,10 @@ extern "C"
 #include <algorithm>
 
 const std::map<uint32_t, size_t> MB85RC::DEVICE_PROPERTIES = {
-	{uint32_t(DEVICE_ID_CODE::MB85RC64TA) , 64*1024  / 8},
-	{uint32_t(DEVICE_ID_CODE::MB85RC256TY), 256*1024 / 8},
-	{uint32_t(DEVICE_ID_CODE::MB85RC512TY), 512*1024 / 8}
+	{uint32_t(DEVICE_ID_CODE::MB85RC64TA) ,   64*1024 / 8},
+	{uint32_t(DEVICE_ID_CODE::MB85RC256TY),  256*1024 / 8},
+	{uint32_t(DEVICE_ID_CODE::MB85RC512TY),  512*1024 / 8},
+	{uint32_t(DEVICE_ID_CODE::MB85RC1MT),   1024*1024 / 8}
 };
 
 MB85RC::MB85RC(const std::shared_ptr<I2C_bus_base>& bus, const long id) : I2C_dev_base(bus, id)
@@ -140,6 +141,7 @@ bool MB85RC::sleep()
 
 	return true;
 }
+
 bool MB85RC::wake()
 {
 	// i2ctransfer -a -y 0 w0@0x50
@@ -165,6 +167,102 @@ bool MB85RC::wake()
 
 	// wait for trec, 400-450us
 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+	return true;
+}
+
+bool MB85RC::read(const size_t addr, void* buf, const size_t size)
+{
+	SPDLOG_DEBUG("MB85RC::read 0x{:02X} {:d}@0x{:04X}", m_dev_addr, size, addr);
+
+	std::array<uint8_t, 2> addr_data;
+	addr_data[0] = (addr & 0xFF00U) >> 8;
+	addr_data[1] = (addr & 0x00FFU) >> 0;
+
+	std::array<i2c_msg, 2> trx {};
+	trx[0].addr  = m_dev_addr;
+	trx[0].flags = 0;
+	trx[0].len   = addr_data.size();
+	trx[0].buf   = addr_data.data();
+
+	trx[1].addr  = m_dev_addr;
+	trx[1].flags = I2C_M_RD;
+	trx[1].len   = size;
+	trx[1].buf   = (unsigned char*)buf;
+
+	i2c_rdwr_ioctl_data idat {};
+	idat.msgs  = trx.data();
+	idat.nmsgs = trx.size();
+
+	{
+		std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+
+		if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
+		{
+			SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool MB85RC::write(const size_t addr, const void* buf, const size_t size)
+{		
+	SPDLOG_DEBUG("MB85RC::write 0x{:02X} {:d}@0x{:04X}", m_dev_addr, size, addr);
+
+	std::array<uint8_t, 2> addr_data;
+	addr_data[0] = (addr & 0xFF00U) >> 8;
+	addr_data[1] = (addr & 0x00FFU) >> 0;
+
+	// gather IO not supported by several drivers and/or FT260S, so we need a temp buffer
+	// std::vector<uint8_t> write_buf;
+	// write_buf.reserve(prop.addr_size + prop.page_size);
+	// write_buf.insert(write_buf.end(), addr_data.data(), addr_data.data() + addr_data.size());
+	// write_buf.insert(write_buf.end(), buf, buf + addr_data.size());
+
+	std::array<i2c_msg, 2> trx {};
+	trx[0].addr  = m_dev_addr;
+	trx[0].flags = 0;
+	trx[0].len   = addr_data.size();
+	trx[0].buf   = addr_data.data();
+
+	trx[1].addr  = m_dev_addr;
+	trx[1].flags = I2C_M_NOSTART;
+	trx[1].len   = size;
+	trx[1].buf   = (unsigned char*)buf;
+
+	i2c_rdwr_ioctl_data idat {};
+	idat.msgs  = trx.data();
+	idat.nmsgs = trx.size();
+
+	{
+		std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+
+		if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
+		{
+			SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool MB85RC::fill(const uint8_t val)
+{
+	std::array<uint8_t, 32> buf;
+	buf.fill(val);
+
+	const size_t mem_size = m_size.value();
+	for(size_t i = 0; i < mem_size; i += buf.size())
+	{
+		const size_t num_to_write = std::min(buf.size(), mem_size - i);
+		if( ! write(i, buf.data(), num_to_write) )
+		{
+			return false;
+		}
+	}
 
 	return true;
 }

@@ -33,6 +33,7 @@ public:
 		MB85RC64TA  = 0x00A358U,
 		MB85RC256TY = 0x00A498U,
 		MB85RC512TY = 0x00A598U,
+		MB85RC1MT   = 0x00A758U,
 	};
 
 	// device id -> size
@@ -51,6 +52,37 @@ public:
 
 	bool sleep();
 	bool wake();
+
+	template<size_t LEN>
+	bool write(const size_t addr, const std::array<uint8_t, LEN>& buf)
+	{
+		return write(addr, buf.data(), buf.size());
+	}
+
+	template<size_t LEN>
+	bool read(const size_t addr, std::array<uint8_t, LEN>* const out_buf)
+	{
+		return read(addr, out_buf->data(), out_buf->size());
+	}
+
+	bool write(const size_t addr, const std::vector<uint8_t>& buf)
+	{
+		return write(addr, buf.data(), buf.size());
+	}
+
+	bool read(const size_t addr, std::vector<uint8_t>* const out_buf)
+	{
+		return read(addr, out_buf->data(), out_buf->size());
+	}
+
+	virtual bool read(const size_t addr, void* buf, const size_t size);
+	virtual bool write(const size_t addr, const void* buf, const size_t size);
+
+    virtual bool fill(const uint8_t val);
+    virtual bool erase()
+    {
+    	return fill(0xFF);
+    }
 
 protected:
 	std::optional<uint32_t> m_device_id;

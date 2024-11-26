@@ -92,20 +92,30 @@ public:
 		return m_probed_properties.value().addr_size;
 	}
     
-	template<size_t LEN>
-	bool read(const size_t addr, const std::array<uint8_t, LEN>& buf)
-	{
-		return read(addr, buf.data(), buf.size());
-	}
-
-	template<size_t LEN>
-	bool write(const size_t addr, std::array<uint8_t, LEN>* const out_buf)
-	{
-		return write(addr, out_buf->data(), out_buf->size());
-	}
-
 	virtual bool read(const size_t addr, void* buf, const size_t size);
     virtual bool write(const size_t addr, const void* buf, const size_t size);
+
+	template<size_t LEN>
+	bool write(const size_t addr, const std::array<uint8_t, LEN>& buf)
+	{
+		return write(addr, buf.data(), buf.size());
+	}
+
+	template<size_t LEN>
+	bool read(const size_t addr, std::array<uint8_t, LEN>* const out_buf)
+	{
+		return read(addr, out_buf->data(), out_buf->size());
+	}
+
+	bool write(const size_t addr, const std::vector<uint8_t>& buf)
+	{
+		return write(addr, buf.data(), buf.size());
+	}
+
+	bool read(const size_t addr, std::vector<uint8_t>* const out_buf)
+	{
+		return read(addr, out_buf->data(), out_buf->size());
+	}
 
     virtual bool fill(const uint8_t val);
     virtual bool erase()
