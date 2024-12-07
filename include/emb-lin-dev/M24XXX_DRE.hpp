@@ -67,8 +67,25 @@ public:
 	virtual bool probe(M24XXX_DRE_ID* const out_id);
 
 	virtual bool read_id_code(Device_id_code* const out_buf);
-	virtual bool read_id_page(std::vector<uint8_t>* const out_id_page);
-	virtual bool write_id_page(const std::vector<uint8_t>& id_page);
+	
+	virtual bool read_id_page(uint8_t* const out_buf, const size_t size);
+	virtual bool write_id_page(uint8_t const * const buf, const size_t size);
+
+	bool read_id_page(std::vector<uint8_t>* const out_id_page)
+	{
+		const M24XXX_DRE_Properties& prop = m_probed_properties.value();
+
+		if((out_id_page->empty()) || (out_id_page->size() > prop.page_size))
+		{
+			out_id_page->resize(prop.page_size);
+		}
+
+		return read_id_page(out_id_page->data(), out_id_page->size());
+	}
+	bool write_id_page(const std::vector<uint8_t>& id_page)
+	{
+		return write_id_page(id_page.data(), id_page.size());
+	}
 	virtual bool lock_id_page();
 	virtual bool get_id_lock_status(bool* const is_locked);
 
@@ -92,8 +109,17 @@ public:
 		return m_probed_properties.value().addr_size;
 	}
     
-	virtual bool read(const size_t addr, void* buf, const size_t size);
-    virtual bool write(const size_t addr, const void* buf, const size_t size);
+	virtual bool read(const size_t addr, uint8_t* buf, const size_t size);
+    virtual bool write(const size_t addr, const uint8_t* buf, const size_t size);
+
+	bool read(const size_t addr, void* buf, const size_t size)
+	{
+		return read(addr, (uint8_t*)buf, size);
+	}
+    bool write(const size_t addr, const void* buf, const size_t size)
+    {
+    	return write(addr, (uint8_t*)buf, size);
+    }
 
 	template<size_t LEN>
 	bool write(const size_t addr, const std::array<uint8_t, LEN>& buf)
