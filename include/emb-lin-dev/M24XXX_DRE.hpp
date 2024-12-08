@@ -91,6 +91,11 @@ public:
 	{
 		return m_probed_properties.value().addr_size;
 	}
+
+	size_t get_addrbits() const
+	{
+		return m_probed_properties.value().addr_bits;
+	}
     
 	virtual bool read(const size_t addr, void* buf, const size_t size);
     virtual bool write(const size_t addr, const void* buf, const size_t size);
