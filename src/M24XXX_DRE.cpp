@@ -51,6 +51,9 @@ M24XXX_DRE::~M24XXX_DRE()
 
 bool M24XXX_DRE::probe(const size_t addr_size, M24XXX_DRE_ID* const out_id)
 {
+	m_probed_id.reset();
+	m_probed_properties.reset();
+
 	Device_id_code buf;
 	if( ! read_id_code(&buf) )
 	{
@@ -85,6 +88,32 @@ bool M24XXX_DRE::probe(const size_t addr_size, M24XXX_DRE_ID* const out_id)
 	}
 
 	return true;
+}
+
+bool M24XXX_DRE::force_probe(const M24XXX_DRE_ID& id)
+{
+	m_probed_id = id;
+	m_probed_properties.reset();
+
+	if( (buf[0] == MF_CODE) && (buf[1] == FAMILY_CODE) )
+	{
+		const auto it = DEVICE_PROPERTIES.find(buf[2]);
+		if(it != DEVICE_PROPERTIES.end())
+		{
+			m_probed_properties = it->second;
+		}
+		else
+		{
+			// Unknown density code
+			return false;
+		}
+	}
+	else
+	{
+		// MF and i2c fam code does not match
+		// Not a M24 DRE series eeprom
+		return false;
+	}
 }
 
 bool M24XXX_DRE::read_id_code(const size_t addr_size, Device_id_code* const out_buf)
