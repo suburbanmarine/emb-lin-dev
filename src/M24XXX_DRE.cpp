@@ -226,12 +226,7 @@ bool M24XXX_DRE::write_id_page(uint8_t const * const buf, const size_t size)
 		return false;
 	}
 
-	uint8_t dev_addr_with_data_addr;
-	std::array<uint8_t, 2> addr_data;
-	if( ! get_io_addr(0, &dev_addr_with_data_addr, &addr_data) )
-	{
-		return false;
-	}
+	std::array<uint8_t, 2> addr_data = {0, 0};
 
 	std::vector<uint8_t> i2cbuf;
 	i2cbuf.reserve(prop.addr_size + prop.page_size);
