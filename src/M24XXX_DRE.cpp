@@ -95,9 +95,9 @@ bool M24XXX_DRE::force_probe(const M24XXX_DRE_ID& id)
 	m_probed_id = id;
 	m_probed_properties.reset();
 
-	if( (buf[0] == MF_CODE) && (buf[1] == FAMILY_CODE) )
+	if( (id.mf_code == MF_CODE) && (id.fam_code == FAMILY_CODE) )
 	{
-		const auto it = DEVICE_PROPERTIES.find(buf[2]);
+		const auto it = DEVICE_PROPERTIES.find(id.density_code);
 		if(it != DEVICE_PROPERTIES.end())
 		{
 			m_probed_properties = it->second;
@@ -114,6 +114,8 @@ bool M24XXX_DRE::force_probe(const M24XXX_DRE_ID& id)
 		// Not a M24 DRE series eeprom
 		return false;
 	}
+
+	return true;
 }
 
 bool M24XXX_DRE::read_id_code(const size_t addr_size, Device_id_code* const out_buf)
