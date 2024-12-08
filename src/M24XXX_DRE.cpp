@@ -49,7 +49,7 @@ M24XXX_DRE::~M24XXX_DRE()
 
 }
 
-bool M24XXX_DRE::probe(M24XXX_DRE_ID* const out_id)
+bool M24XXX_DRE::probe(const size_t addr_size, M24XXX_DRE_ID* const out_id)
 {
 	Device_id_code buf;
 	if( ! read_id_code(&buf) )
@@ -86,6 +86,40 @@ bool M24XXX_DRE::probe(M24XXX_DRE_ID* const out_id)
 
 	return true;
 }
+
+bool M24XXX_DRE::read_id_code(const size_t addr_size, Device_id_code* const out_buf)
+{
+	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
+
+	std::array<uint8_t, 2> addr_data;
+	addr_data.fill(0);
+
+	std::array<i2c_msg, 2> trx {};
+	trx[0].addr  = get_idpage_addr();
+	trx[0].flags = 0;
+	trx[0].len   = addr_size;
+	trx[0].buf   = addr_data.data();
+
+	trx[1].addr  = get_idpage_addr();
+	trx[1].flags = I2C_M_RD;
+	trx[1].len   = out_buf->size();
+	trx[1].buf   = out_buf->data();
+
+	i2c_rdwr_ioctl_data idat {};
+	idat.msgs  = trx.data();
+	idat.nmsgs = trx.size();
+
+	std::shared_ptr<I2C_bus_open_close> bus_closer = std::make_shared<I2C_bus_open_close>(*m_bus);
+	
+	if(ioctl(m_bus->get_fd(), I2C_RDWR, &idat) < 0)
+	{
+		SPDLOG_ERROR("ioctl failed, errno: {:d}", errno);
+		return false;
+	}
+
+	return true;
+}
+
 bool M24XXX_DRE::read_id_code(Device_id_code* const out_buf)
 {
 	const M24XXX_DRE_Properties& prop = m_probed_properties.value();

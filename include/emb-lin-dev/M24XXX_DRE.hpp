@@ -60,12 +60,22 @@ public:
 		return PAGE_WRITE_TIME;
 	}
 
-	virtual bool probe()
+	// hint addr size when probing
+	// probing an unlocked device with the wrong addr_size is not safe.
+	virtual bool probe(const size_t addr_size)
 	{
-		return probe(nullptr);
+		return probe(addr_size, nullptr);
 	}
-	virtual bool probe(M24XXX_DRE_ID* const out_id);
 
+	// hint addr size when probing
+	// probing an unlocked device with the wrong addr_size is not safe.
+	virtual bool probe(const size_t addr_size, M24XXX_DRE_ID* const out_id);
+
+	// hint addr size when reading id code
+	// probing an unlocked device with the wrong addr_size is not safe.
+	virtual bool read_id_code(const size_t addr_size, Device_id_code* const out_buf);
+	
+	// requires valid probe
 	virtual bool read_id_code(Device_id_code* const out_buf);
 	
 	virtual bool read_id_page(uint8_t* const out_buf, const size_t size);
@@ -113,7 +123,7 @@ public:
 	{
 		return m_probed_properties.value().addr_bits;
 	}
-    
+
 	virtual bool read(const size_t addr, uint8_t* buf, const size_t size);
     virtual bool write(const size_t addr, const uint8_t* buf, const size_t size);
 
