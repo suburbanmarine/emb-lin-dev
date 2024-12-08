@@ -120,8 +120,6 @@ bool M24XXX_DRE::force_probe(const M24XXX_DRE_ID& id)
 
 bool M24XXX_DRE::read_id_code(const size_t addr_size, Device_id_code* const out_buf)
 {
-	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
-
 	std::array<uint8_t, 2> addr_data;
 	addr_data.fill(0);
 
