@@ -55,7 +55,7 @@ bool M24XXX_DRE::probe(const size_t addr_size, M24XXX_DRE_ID* const out_id)
 	m_probed_properties.reset();
 
 	Device_id_code buf;
-	if( ! read_id_code(&buf) )
+	if( ! read_id_code(addr_size, &buf) )
 	{
 		return false;
 	}
