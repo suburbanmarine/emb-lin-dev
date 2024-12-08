@@ -28,15 +28,15 @@ extern "C"
 
 // density_code -> [size, pagesize, addrsize, addrbits]
 const std::map<uint8_t, M24XXX_DRE::M24XXX_DRE_Properties> M24XXX_DRE::DEVICE_PROPERTIES = {
-	{0x08U,   {256,  16, 1, 8}},
-	{0x09U,   {512,  16, 1, 9}},
-	{0x0AU,  {1024,  16, 1, 10}},
-	{0x0BU,  {2048,  16, 1, 11}},
-	{0x0CU,  {4096,  32, 2, 12}},
-	{0x0DU,  {8192,  32, 2, 13}},
-	{0x0EU, {16384,  64, 2, 14}},
-	{0x0FU, {32768,  64, 2, 15}},
-	{0x10U, {65536, 128, 2, 16}}
+	{0x08U,   {256,  16, 1, 8}},  // M24C02-DRE
+	{0x09U,   {512,  16, 1, 9}},  // M24C04-DRE
+	{0x0AU,  {1024,  16, 1, 10}}, // M24C08-DRE
+	{0x0BU,  {2048,  16, 1, 11}}, // M24C16-DRE
+	{0x0CU,  {4096,  32, 2, 12}}, // M24C32-DRE
+	{0x0DU,  {8192,  32, 2, 13}}, // M24C64-DRE
+	{0x0EU, {16384,  64, 2, 14}}, // M24128-DRE
+	{0x0FU, {32768,  64, 2, 15}}, // M24256-DRE
+	{0x10U, {65536, 128, 2, 16}}  // M24512-DRE
 };
 
 M24XXX_DRE::M24XXX_DRE(const std::shared_ptr<I2C_bus_base>& bus, const long id) : I2C_dev_base(bus, id)
@@ -68,11 +68,14 @@ bool M24XXX_DRE::probe(M24XXX_DRE_ID* const out_id)
 		}
 		else
 		{
+			// Unknown density code
 			return false;
 		}
 	}
 	else
 	{
+		// MF and i2c fam code does not match
+		// Not a M24 DRE series eeprom
 		return false;
 	}
 
@@ -115,14 +118,16 @@ bool M24XXX_DRE::read_id_code(Device_id_code* const out_buf)
 
 	return true;
 }
-bool M24XXX_DRE::read_id_page(std::vector<uint8_t>* const out_id_page)
+bool M24XXX_DRE::read_id_page(uint8_t* const out_buf, const size_t size)
 {
 	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
 
-	out_id_page->resize(prop.page_size);
+	if(size > prop.page_size)
+	{
+		return false;
+	}
 
-	std::array<uint8_t, 2> addr_data;
-	addr_data.fill(0);
+	std::array<uint8_t, 2> addr_data = {0, 0};
 
 	std::array<i2c_msg, 2> trx {};
 	trx[0].addr  = get_idpage_addr();
@@ -132,8 +137,8 @@ bool M24XXX_DRE::read_id_page(std::vector<uint8_t>* const out_id_page)
 
 	trx[1].addr  = get_idpage_addr();
 	trx[1].flags = I2C_M_RD;
-	trx[1].len   = out_id_page->size();
-	trx[1].buf   = out_id_page->data();
+	trx[1].len   = size;
+	trx[1].buf   = out_buf;
 
 	i2c_rdwr_ioctl_data idat {};
 	idat.msgs  = trx.data();
@@ -149,11 +154,11 @@ bool M24XXX_DRE::read_id_page(std::vector<uint8_t>* const out_id_page)
 
 	return true;
 }
-bool M24XXX_DRE::write_id_page(const std::vector<uint8_t>& id_page)
+bool M24XXX_DRE::write_id_page(uint8_t const * const buf, const size_t size)
 {
 	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
 
-	if(id_page.size() > prop.page_size)
+	if(size > prop.page_size)
 	{
 		return false;
 	}
@@ -165,16 +170,16 @@ bool M24XXX_DRE::write_id_page(const std::vector<uint8_t>& id_page)
 		return false;
 	}
 
-	std::vector<uint8_t> buf;
-	buf.reserve(prop.addr_size + prop.page_size);
-	buf.insert(buf.end(), addr_data.data(), addr_data.data() + prop.addr_size);
-	buf.insert(buf.end(), id_page.begin(), id_page.end());
+	std::vector<uint8_t> i2cbuf;
+	i2cbuf.reserve(prop.addr_size + prop.page_size);
+	i2cbuf.insert(i2cbuf.end(), addr_data.data(), addr_data.data() + prop.addr_size);
+	i2cbuf.insert(i2cbuf.end(), buf, buf + size);
 
 	std::array<i2c_msg, 1> trx {};
 	trx[0].addr  = get_idpage_addr();
 	trx[0].flags = 0;
-	trx[0].len   = buf.size();
-	trx[0].buf   = buf.data();
+	trx[0].len   = i2cbuf.size();
+	trx[0].buf   = i2cbuf.data();
 
 	i2c_rdwr_ioctl_data idat {};
 	idat.msgs  = trx.data();
@@ -262,7 +267,7 @@ bool M24XXX_DRE::get_id_lock_status(bool* const is_locked)
 	return true;
 }
 
-bool M24XXX_DRE::read(const size_t addr, void* buf, const size_t size) 
+bool M24XXX_DRE::read(const size_t addr, uint8_t* buf, const size_t size) 
 {
 	if( (addr + size) > get_size() )
 	{
@@ -290,7 +295,7 @@ bool M24XXX_DRE::read(const size_t addr, void* buf, const size_t size)
 	trx[1].addr  = dev_addr_with_data_addr;
 	trx[1].flags = I2C_M_RD;
 	trx[1].len   = size;
-	trx[1].buf   = (unsigned char*)buf;
+	trx[1].buf   = buf;
 
 	i2c_rdwr_ioctl_data idat {};
 	idat.msgs  = trx.data();
@@ -306,7 +311,7 @@ bool M24XXX_DRE::read(const size_t addr, void* buf, const size_t size)
 
 	return true;
 }
-bool M24XXX_DRE::write(const size_t addr, const void* buf, const size_t size)
+bool M24XXX_DRE::write(const size_t addr, const uint8_t* buf, const size_t size)
 {		
 	if( (addr + size) > get_size() )
 	{
