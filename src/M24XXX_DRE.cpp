@@ -153,8 +153,7 @@ bool M24XXX_DRE::read_id_code(Device_id_code* const out_buf)
 {
 	const M24XXX_DRE_Properties& prop = m_probed_properties.value();
 
-	std::array<uint8_t, 2> addr_data;
-	addr_data.fill(0);
+	std::array<uint8_t, 2> addr_data = {0, 0};
 
 	std::array<i2c_msg, 2> trx {};
 	trx[0].addr  = get_idpage_addr();
