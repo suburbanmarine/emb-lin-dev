@@ -60,6 +60,11 @@ public:
 		return PAGE_WRITE_TIME;
 	}
 
+	// Determine if the eeprom has 1 or 2 address bytes by writing the first two bytes
+	// After that, probe as normal
+	// Can be useful when we are going to format the eeprom anyway, so don't care about the data in b0-b1
+	// virtual bool probe_destructive();
+
 	// force set the id and properties to this id
 	// returns true if valid
 	virtual bool force_probe(const M24XXX_DRE_ID& id);
