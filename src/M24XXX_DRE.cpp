@@ -92,7 +92,7 @@ bool M24XXX_DRE::probe(const size_t addr_size, M24XXX_DRE_ID* const out_id)
 
 bool M24XXX_DRE::force_probe(const M24XXX_DRE_ID& id)
 {
-	m_probed_id = id;
+	m_probed_id.reset();
 	m_probed_properties.reset();
 
 	if( (id.mf_code == MF_CODE) && (id.fam_code == FAMILY_CODE) )
@@ -100,6 +100,7 @@ bool M24XXX_DRE::force_probe(const M24XXX_DRE_ID& id)
 		const auto it = DEVICE_PROPERTIES.find(id.density_code);
 		if(it != DEVICE_PROPERTIES.end())
 		{
+			m_probed_id = id;
 			m_probed_properties = it->second;
 		}
 		else
