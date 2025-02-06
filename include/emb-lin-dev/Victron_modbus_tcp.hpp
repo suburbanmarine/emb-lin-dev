@@ -11,6 +11,8 @@
 
 #pragma once 
 
+#include <nlohmann/json.hpp>
+
 #include <atomic>
 #include <map>
 #include <memory>
@@ -27,10 +29,10 @@ public:
 
 	enum class FUNCTION_CODE : uint8_t
 	{
-		READ_HOLDING_REGISTERS   = 0x01U,
-		READ_INPUT_REGISTERS     = 0x02U,
-		WRITE_SINGLE_REGISTER    = 0x03U,
-		WRITE_MULTIPLE_REGISTERS = 0x0AU
+		READ_HOLDING_REGISTERS   = 0x03U,
+		READ_INPUT_REGISTERS     = 0x04U, // for victron, codes 0x03 and 0x4 are the same
+		WRITE_SINGLE_REGISTER    = 0x06U,
+		WRITE_MULTIPLE_REGISTERS = 0x10U
 	};
 
 	enum class ERROR : uint8_t
@@ -126,7 +128,7 @@ public:
 		uint16_t reg_id;
 		std::vector<uint8_t> payload;
 
-		bool serialize(std::vector<uint8_t>* const out_frame);
+		bool serialize(std::vector<uint8_t>* const out_frame) const;
 		bool deserialize(const std::vector<uint8_t>& frame);
 
 		bool is_frame_response_for(const Modbus_tcp_frame& other) const
@@ -143,7 +145,42 @@ public:
 
 	bool read_serial(std::string* const out_serial);
 
+	bool read_register(const std::string& register_name, Modbus_tcp_frame* out_resp);
+
 protected:
+
+	static size_t get_regtype_payload_length(const RegisterType& regtype)
+	{
+		size_t ret = 0;
+		switch(regtype)
+		{
+			case RegisterType::INT8:
+			case RegisterType::UINT8:
+			{
+				ret = 1;
+				break;
+			}
+			case RegisterType::INT16:
+			case RegisterType::UINT16:
+			{
+				ret = 2;
+				break;
+			}
+			case RegisterType::INT32:
+			case RegisterType::UINT32:
+			{
+				ret = 4;
+				break;
+			}
+			default:
+			{
+				ret = 0;
+				break;
+			}
+		}
+
+		return ret;
+	}
 
 	bool write_buf(const std::vector<uint8_t>& buf);
 	bool read_buf(const size_t payload_len, std::vector<uint8_t>* const buf);
@@ -155,3 +192,6 @@ protected:
 	constexpr static uint16_t TCP_PORT = 502U;
 	const static std::map<std::string, VictronModbusTcpRegister> VICTRON_REG_MAP;
 };
+
+void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_tcp_frame& val);
+void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_tcp_frame& val);

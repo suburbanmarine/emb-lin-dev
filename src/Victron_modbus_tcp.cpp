@@ -18,6 +18,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#include <exception>
+
 #include <cstring>
 
 // TODO: maybe just directly read the spreadsheet, or have a script dump the spreadsheet here
@@ -73,7 +75,40 @@ const std::map<std::string, Victron_modbus_tcp::VictronModbusTcpRegister> Victro
 	{ "/Ac/Out/L3/P",                 {.path = "/Ac/Out/L3/P",                 .address =    25, .type = Victron_modbus_tcp::RegisterType::INT16,  .scalefactor = std::make_pair(1, 10), .writable  = false} }
 };
 
-bool Victron_modbus_tcp::Modbus_tcp_frame::serialize(std::vector<uint8_t>* const out_frame)
+void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_tcp_frame& val)
+{
+	j = nlohmann::json{
+		{"trx_id",      val.trx_id},
+		{"protocol_id", val.protocol_id},
+		{"unit_id",     val.unit_id},
+		{"func_code",   val.func_code},
+		{"reg_id",      val.reg_id},
+		{"payload",     fmt::format("{:02X}", fmt::join(val.payload, ""))}
+	};
+}
+void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_tcp_frame& val)
+{
+	j.at("trx_id").get_to(val.trx_id);
+	j.at("protocol_id").get_to(val.protocol_id);
+	j.at("unit_id").get_to(val.unit_id);
+	j.at("func_code").get_to(val.func_code);
+	j.at("reg_id").get_to(val.reg_id);
+
+	const std::string& payload_hex = j.at("payload");
+	if( (payload_hex.size() % 2) != 0)
+	{
+		throw std::domain_error("payload length must be multiple of two");
+	}
+
+	val.payload.resize(payload_hex.size() / 2);
+	for(size_t i = 0; i < payload_hex.size(); i += 2)
+	{
+		const char temp[] = {payload_hex[i], payload_hex[i + 1], 0};
+		val.payload[i / 2] = strtoul(temp, nullptr, 16);
+	}
+}
+
+bool Victron_modbus_tcp::Modbus_tcp_frame::serialize(std::vector<uint8_t>* const out_frame) const
 {
 	const uint16_t length = 4+payload.size();
 	out_frame->resize(length);
@@ -237,6 +272,67 @@ bool Victron_modbus_tcp::read_serial(std::string* const out_serial)
 	{
 		out_serial->clear();
 		out_serial->insert(out_serial->end(), resp_frame.payload.begin(), resp_frame.payload.end());
+	}
+
+	return true;
+}
+
+bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_tcp_frame* out_resp)
+{
+	if( ! m_fd )
+	{
+		return false;
+	}
+
+	if( ! out_resp )
+	{
+		return false;
+	}
+
+	auto reg_info = VICTRON_REG_MAP.find(register_name);
+	if(reg_info == VICTRON_REG_MAP.end())
+	{
+		// add metadata about register to VICTRON_REG_MAP
+		return false;
+	}
+
+	const size_t payload_len = get_regtype_payload_length(reg_info->second.type);
+	if(payload_len == 0)
+	{
+		// unsupported by this api, eg a string
+		return false;
+	}
+
+	Modbus_tcp_frame cmd;
+	cmd.trx_id    = req_id++;
+	cmd.unit_id   = 100;
+	cmd.func_code = uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS);
+	cmd.reg_id    = reg_info->second.address;
+
+	std::vector<uint8_t> buf;
+	if( ! cmd.serialize(&buf) )
+	{
+		return false;
+	}
+
+	if( ! write_buf(buf) )
+	{
+		return false;
+	}
+
+	if( ! read_buf(payload_len, &buf) )
+	{
+		return false;
+	}
+
+	if( ! out_resp->deserialize(buf) )
+	{
+		return false;
+	}
+
+	if( ! out_resp->is_frame_response_for(cmd) )
+	{
+		return false;
 	}
 
 	return true;
