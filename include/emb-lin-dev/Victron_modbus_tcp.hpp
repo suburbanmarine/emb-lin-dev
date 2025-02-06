@@ -157,6 +157,22 @@ public:
 		return m_fd && m_fd->is_open();
 	}
 
+	static bool get_register_metadata(const std::string& dbus_name, VictronModbusTcpRegister* const out_metadata)
+	{
+		auto it = VICTRON_REG_MAP.find(dbus_name);
+		if(it == VICTRON_REG_MAP.end())
+		{
+			return false;
+		}
+
+		if(out_metadata)
+		{
+			*out_metadata = it->second;
+		}
+
+		return true;
+	}
+
 protected:
 
 	static size_t get_regtype_payload_length(const RegisterType& regtype)

@@ -275,11 +275,6 @@ bool Victron_modbus_tcp::read_serial(std::string* const out_serial)
 
 bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_tcp_frame* out_resp)
 {
-	if( ! m_fd )
-	{
-		return false;
-	}
-
 	if( ! out_resp )
 	{
 		return false;
