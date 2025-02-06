@@ -225,10 +225,6 @@ bool Victron_modbus_tcp::close()
 
 bool Victron_modbus_tcp::read_serial(std::string* const out_serial)
 {
-	if( ! m_fd )
-	{
-		return false;
-	}
 	auto reg_info = VICTRON_REG_MAP.find("/Serial");
 	if(reg_info == VICTRON_REG_MAP.end())
 	{
@@ -237,7 +233,7 @@ bool Victron_modbus_tcp::read_serial(std::string* const out_serial)
 
 	Modbus_tcp_frame frame;
 	frame.trx_id    = req_id++;
-	frame.unit_id   = CERBO_GX_UNIT_ID::VECAN;
+	frame.unit_id   = uint8_t(CERBO_GX_UNIT_ID::VECAN);
 	frame.func_code = uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS);
 	frame.reg_id    = reg_info->second.address;
 
@@ -305,7 +301,7 @@ bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_
 
 	Modbus_tcp_frame cmd;
 	cmd.trx_id    = req_id++;
-	cmd.unit_id   = CERBO_GX_UNIT_ID::VECAN;
+	cmd.unit_id   = uint8_t(CERBO_GX_UNIT_ID::VECAN);
 	cmd.func_code = uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS);
 	cmd.reg_id    = reg_info->second.address;
 
@@ -340,6 +336,11 @@ bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_
 
 bool Victron_modbus_tcp::write_buf(const std::vector<uint8_t>& buf)
 {
+	if( ! is_open() )
+	{
+		return false;
+	}
+
 	size_t num_written = 0;
 	do
 	{
@@ -359,10 +360,15 @@ bool Victron_modbus_tcp::write_buf(const std::vector<uint8_t>& buf)
 
 bool Victron_modbus_tcp::read_buf(const size_t payload_len, std::vector<uint8_t>* const buf)
 {
-	const ssize_t TOTAL_LEN = payload_len + 10;
-	ssize_t num_read = 0;
+	if( ! is_open() )
+	{
+		return false;
+	}
 
+	const ssize_t TOTAL_LEN = payload_len + 10;
 	buf->resize(TOTAL_LEN);
+
+	ssize_t num_read = 0;
 
 	do
 	{

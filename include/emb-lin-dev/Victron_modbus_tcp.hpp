@@ -101,6 +101,11 @@ public:
 			return m_fd;
 		}
 
+		bool is_open() const
+		{
+			return m_fd >= 0;
+		}
+
 	protected:
 		int m_fd;
 	};
@@ -146,6 +151,11 @@ public:
 	bool read_serial(std::string* const out_serial);
 
 	bool read_register(const std::string& register_name, Modbus_tcp_frame* out_resp);
+
+	bool is_open() const
+	{
+		return m_fd && m_fd->is_open();
+	}
 
 protected:
 
