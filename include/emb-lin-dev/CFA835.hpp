@@ -11,101 +11,19 @@
 
 #pragma once
 
+#include "emb-lin-dev/CFA_base.hpp"
+
 #include <chrono>
 #include <vector>
 #include <string>
 
 #include <cstdint>
 
-class CFA835
+class CFA835 : public CFA_base
 {
 public:
 	CFA835();
 	~CFA835();
-
-	class CFA835_Packet
-	{
-	public:
-		CFA835_Packet()
-		{
-
-		}
-		~CFA835_Packet()
-		{
-
-		}
-
-		bool is_command() const
-		{
-			return (cmd & 0xC0U) == 0x00U;
-		}
-
-		bool is_response() const
-		{
-			return (cmd & 0xC0U) == 0x40U;
-		}
-
-		bool is_report() const
-		{
-			return (cmd & 0xC0U) == 0x80U;
-		}
-
-		bool is_error() const
-		{
-			return (cmd & 0xC0U) == 0xC0U;
-		}
-
-		uint8_t get_cmd() const
-		{
-			return cmd & 0x3FU;
-		}
-
-		// Check packet is a response to a particular command, and not eg an error packet
-		bool is_ack_response_to(const uint8_t cmd) const
-		{
-			return is_response() && (get_cmd() == cmd);
-		}
-
-		// For nested commands like CFA835::OP_CODE::GRAPHIC_CMD
-		bool is_ack_response_to(const uint8_t cmd, const uint8_t subcmd) const
-		{
-			return is_response() && (get_cmd() == cmd) && (data.size() >= 1) && (data[0] == subcmd);
-		}
-
-		bool is_error_response_to(const uint8_t cmd) const
-		{
-			return is_error() && (get_cmd() == cmd);
-		}
-
-		// For nested commands like CFA835::OP_CODE::GRAPHIC_CMD
-		bool is_error_response_to(const uint8_t cmd, const uint8_t subcmd) const
-		{
-			return is_error() && (get_cmd() == cmd) && (data.size() >= 1) && (data[0] == subcmd);
-		}
-
-		bool is_cmd_error_eq(const uint8_t err) const
-		{
-			return data[1] == err;
-		}
-
-		bool is_subcmd_error_eq(const uint8_t err) const
-		{
-			return (data.size() >= 2) && (data[1] == err);
-		}
-
-		bool is_subcommand_error_eq(const uint8_t err) const
-		{
-			return (data.size() >= 3) && (data[2] == err);
-		}
-
-		bool serialize(std::vector<uint8_t>* out_buf) const;
-		bool deserialize(const std::vector<uint8_t>& buf);
-		uint16_t calc_crc() const;
-
-		uint8_t cmd;
-		std::vector<uint8_t> data;
-		uint16_t crc;
-	};
 
 	static constexpr size_t WIDTH  = 244U;
 	static constexpr size_t HEIGHT = 68U;
@@ -284,10 +202,6 @@ public:
 		RESTORE_DEFAULT_SETTINGS
 	};
 
-	bool open(const std::string& path);
-	bool close();
-	bool sync();
-
 	// info
 	bool send_ping(const std::string& msg);
 	bool get_module_info(const bool serial_nversion, std::string* const out_info);
@@ -342,16 +256,9 @@ public:
 	bool draw_rectangle(const uint8_t x_top_left, const uint8_t y_top_left, const uint8_t width, const uint8_t height, const uint8_t line_shade, const uint8_t fill_shade);
 	bool draw_circle(const uint8_t x_center, const uint8_t y_center, const uint8_t radius, const uint8_t line_shade, const uint8_t fill_shade);
 
-	bool send_packet(const CFA835_Packet& packet, const std::chrono::milliseconds& max_wait);
-	bool send_buffer(const std::vector<uint8_t>& buf, const std::chrono::milliseconds& max_wait);
-	bool wait_for_packet(CFA835_Packet* out_packet, const std::chrono::milliseconds& max_wait);
-	bool wait_for_read(uint8_t* out_data, size_t len, const std::chrono::milliseconds& max_wait);
-
 	// 0x03, len, value
 	size_t rle_compress(const std::vector<uint8_t>& in, std::vector<uint8_t>* const out);
 
-	static constexpr std::chrono::milliseconds PACKET_TIMEOUT = std::chrono::milliseconds(2000);
-
 protected:
-	int m_fd;
+	
 };

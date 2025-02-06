@@ -21,6 +21,8 @@ configure_file(./include/emb-lin-dev/version.hpp.in version.hpp)
 add_library(emb-lin-dev
 	src/BIC_2200.cpp
 	src/CFA835.cpp
+	src/CFA039.cpp
+	src/CFA_base.cpp
 	src/HEP_1000.cpp
 	src/I2C_bus_base.cpp
 	src/I2C_dev_base.cpp
