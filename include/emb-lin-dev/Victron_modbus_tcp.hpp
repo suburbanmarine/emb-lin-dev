@@ -93,7 +93,11 @@ public:
 				return true;
 			}
 
-			return 0 == ::close(m_fd);
+			const int ret = ::close(m_fd);
+			
+			m_fd = -1;
+
+			return 0 == ret;
 		}
 
 		int get_fd() const
