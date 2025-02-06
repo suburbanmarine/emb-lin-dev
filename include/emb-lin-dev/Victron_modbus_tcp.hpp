@@ -154,6 +154,8 @@ public:
 
 	bool read_serial(std::string* const out_serial);
 
+	bool send_cmd_resp(const Modbus_tcp_frame& cmd, const size_t resp_payload_len, Modbus_tcp_frame* out_resp);
+
 	bool read_register(const std::string& register_name, Modbus_tcp_frame* out_resp);
 
 	bool is_open() const

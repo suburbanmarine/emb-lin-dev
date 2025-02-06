@@ -231,35 +231,14 @@ bool Victron_modbus_tcp::read_serial(std::string* const out_serial)
 		return false;
 	}
 
-	Modbus_tcp_frame frame;
-	frame.trx_id    = req_id++;
-	frame.unit_id   = uint8_t(CERBO_GX_UNIT_ID::VECAN);
-	frame.func_code = uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS);
-	frame.reg_id    = reg_info->second.address;
-
-	std::vector<uint8_t> buf;
-	if( ! frame.serialize(&buf) )
-	{
-		return false;
-	}
-
-	if( ! write_buf(buf) )
-	{
-		return false;
-	}
-
-	if( ! read_buf(6, &buf) )
-	{
-		return false;
-	}
+	Modbus_tcp_frame cmd_frame;
+	cmd_frame.trx_id    = req_id++;
+	cmd_frame.unit_id   = uint8_t(CERBO_GX_UNIT_ID::VECAN);
+	cmd_frame.func_code = uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS);
+	cmd_frame.reg_id    = reg_info->second.address;
 
 	Modbus_tcp_frame resp_frame;
-	if( ! resp_frame.deserialize(buf) )
-	{
-		return false;
-	}
-
-	if( ! resp_frame.is_frame_response_for(frame) )
+	if( ! send_cmd_resp(cmd_frame, 6, &resp_frame) )
 	{
 		return false;
 	}
@@ -273,32 +252,12 @@ bool Victron_modbus_tcp::read_serial(std::string* const out_serial)
 	return true;
 }
 
-bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_tcp_frame* out_resp)
+bool Victron_modbus_tcp::send_cmd_resp(const Modbus_tcp_frame& cmd, const size_t resp_payload_len, Modbus_tcp_frame* out_resp)
 {
 	if( ! out_resp )
 	{
 		return false;
 	}
-
-	auto reg_info = VICTRON_REG_MAP.find(register_name);
-	if(reg_info == VICTRON_REG_MAP.end())
-	{
-		// add metadata about register to VICTRON_REG_MAP
-		return false;
-	}
-
-	const size_t payload_len = get_regtype_payload_length(reg_info->second.type);
-	if(payload_len == 0)
-	{
-		// unsupported by this api, eg a string
-		return false;
-	}
-
-	Modbus_tcp_frame cmd;
-	cmd.trx_id    = req_id++;
-	cmd.unit_id   = uint8_t(CERBO_GX_UNIT_ID::VECAN);
-	cmd.func_code = uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS);
-	cmd.reg_id    = reg_info->second.address;
 
 	std::vector<uint8_t> buf;
 	if( ! cmd.serialize(&buf) )
@@ -311,7 +270,7 @@ bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_
 		return false;
 	}
 
-	if( ! read_buf(payload_len, &buf) )
+	if( ! read_buf(resp_payload_len, &buf) )
 	{
 		return false;
 	}
@@ -327,6 +286,32 @@ bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_
 	}
 
 	return true;
+}
+
+bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_tcp_frame* out_resp)
+{
+
+	auto reg_info = VICTRON_REG_MAP.find(register_name);
+	if(reg_info == VICTRON_REG_MAP.end())
+	{
+		// add metadata about register to VICTRON_REG_MAP
+		return false;
+	}
+
+	const size_t payload_len = get_regtype_payload_length(reg_info->second.type);
+	if(payload_len == 0)
+	{
+		// unsupported by this api, eg a string
+		return false;
+	}
+
+	Modbus_tcp_frame cmd_frame;
+	cmd_frame.trx_id    = req_id++;
+	cmd_frame.unit_id   = uint8_t(CERBO_GX_UNIT_ID::VECAN);
+	cmd_frame.func_code = uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS);
+	cmd_frame.reg_id    = reg_info->second.address;
+
+	return send_cmd_resp(cmd_frame, payload_len, out_resp);
 }
 
 bool Victron_modbus_tcp::write_buf(const std::vector<uint8_t>& buf)
