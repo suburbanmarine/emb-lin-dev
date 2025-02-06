@@ -237,7 +237,7 @@ bool Victron_modbus_tcp::read_serial(std::string* const out_serial)
 
 	Modbus_tcp_frame frame;
 	frame.trx_id    = req_id++;
-	frame.unit_id   = 100;
+	frame.unit_id   = CERBO_GX_UNIT_ID::VECAN;
 	frame.func_code = uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS);
 	frame.reg_id    = reg_info->second.address;
 
@@ -305,7 +305,7 @@ bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_
 
 	Modbus_tcp_frame cmd;
 	cmd.trx_id    = req_id++;
-	cmd.unit_id   = 100;
+	cmd.unit_id   = CERBO_GX_UNIT_ID::VECAN;
 	cmd.func_code = uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS);
 	cmd.reg_id    = reg_info->second.address;
 

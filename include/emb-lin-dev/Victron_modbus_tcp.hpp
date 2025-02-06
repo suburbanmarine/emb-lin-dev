@@ -57,7 +57,7 @@ public:
 
 	enum class CERBO_GX_UNIT_ID : uint8_t
 	{
-		VECAN     = 0,
+		VECAN     = 100,
 		VEDIRECT3 = 223,
 		VEDIRECT2 = 224,
 		BMSCAN    = 225,
