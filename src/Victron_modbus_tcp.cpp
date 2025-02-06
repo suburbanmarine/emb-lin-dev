@@ -23,6 +23,7 @@
 #include <cstring>
 
 // TODO: maybe just directly read the spreadsheet, or have a script dump the spreadsheet here
+// TODO: add length field so we can read strings easily
 const std::map<std::string, Victron_modbus_tcp::VictronModbusTcpRegister> Victron_modbus_tcp::VICTRON_REG_MAP = 
 {
 	{ "/Serial",                      {.path = "/Serial",                      .address =   800, .type = Victron_modbus_tcp::RegisterType::STRING, .scalefactor = std::make_pair(0, 0),   .writable = false} },
