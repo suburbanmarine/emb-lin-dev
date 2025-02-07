@@ -32,6 +32,7 @@
 
 // TODO: maybe just directly read the spreadsheet, or have a script dump the spreadsheet here
 // TODO: add length field so we can read strings easily
+// TODO: add min/max fields for bounds checking
 const std::map<std::string, Victron_modbus_tcp::VictronModbusTcpRegister> Victron_modbus_tcp::VICTRON_REG_MAP = 
 {
 	{ "/Serial",                      {.path = "/Serial",                      .address =   800, .type = Victron_modbus_tcp::RegisterType::STRING, .num_reg = 6, .scalefactor = std::make_pair(0, 0),   .writable = false} },
@@ -83,6 +84,8 @@ const std::map<std::string, Victron_modbus_tcp::VictronModbusTcpRegister> Victro
 	{ "/Ac/Out/L2/P",                 {.path = "/Ac/Out/L2/P",                 .address =    24, .type = Victron_modbus_tcp::RegisterType::INT16,  .num_reg = 0, .scalefactor = std::make_pair(1, 10), .writable  = false} },
 	{ "/Ac/Out/L3/P",                 {.path = "/Ac/Out/L3/P",                 .address =    25, .type = Victron_modbus_tcp::RegisterType::INT16,  .num_reg = 0, .scalefactor = std::make_pair(1, 10), .writable  = false} }
 };
+
+const std::chrono::milliseconds Victron_modbus_tcp::MAX_READ_WAIT_TIME = std::chrono::milliseconds(2000);
 
 void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_tcp_frame& val)
 {
