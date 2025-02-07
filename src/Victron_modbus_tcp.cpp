@@ -11,6 +11,8 @@
 
 #include "emb-lin-dev/Victron_modbus_tcp.hpp"
 
+#include <botan/base64.h>
+
 #include <spdlog/spdlog.h>
 #include <fmt/format.h>
 
@@ -83,7 +85,7 @@ void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_tcp_frame& val)
 		{"protocol_id", val.protocol_id},
 		{"length",      val.length},
 		{"unit_id",     val.unit_id},
-		{"pdu",         fmt::format("{:02X}", fmt::join(val.pdu, ""))}
+		{"pdu",         Botan::base64_encode(val.pdu.data(), val.pdu.size())}
 	};
 }
 void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_tcp_frame& val)
@@ -93,18 +95,7 @@ void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_tcp_frame& va
 	j.at("length").get_to(val.length);
 	j.at("unit_id").get_to(val.unit_id);
 
-	const std::string& pdu_hex = j.at("pdu");
-	if( (pdu_hex.size() % 2) != 0)
-	{
-		throw std::domain_error("pdu length must be multiple of two");
-	}
-
-	val.pdu.resize(pdu_hex.size() / 2);
-	for(size_t i = 0; i < pdu_hex.size(); i += 2)
-	{
-		const char temp[] = {pdu_hex[i], pdu_hex[i + 1], 0};
-		val.pdu[i / 2] = strtoul(temp, nullptr, 16);
-	}
+	val.pdu = Botan::unlock(Botan::base64_decode(j.at("pdu")));
 }
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Victron_modbus_tcp::Modbus_pdu_request_03, func_code, reg_start, num_reg);
@@ -114,26 +105,14 @@ void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_pdu_response_03
 	j = nlohmann::json{
 		{"func_code", val.func_code},
 		{"len_byte",  val.len_byte},
-		{"payload",   fmt::format("{:02X}", fmt::join(val.payload, ""))}
+		{"payload",   Botan::base64_encode(val.payload.data(), val.payload.size())}
 	};
 }
 void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_pdu_response_03& val)
 {
 	j.at("func_code").get_to(val.func_code);
 	j.at("len_byte").get_to(val.len_byte);
-
-	const std::string& payload_hex = j.at("payload");
-	if( (payload_hex.size() % 2) != 0)
-	{
-		throw std::domain_error("payload length must be multiple of two");
-	}
-
-	val.payload.resize(payload_hex.size() / 2);
-	for(size_t i = 0; i < payload_hex.size(); i += 2)
-	{
-		const char temp[] = {payload_hex[i], payload_hex[i + 1], 0};
-		val.payload[i / 2] = strtoul(temp, nullptr, 16);
-	}
+	val.payload = Botan::unlock(Botan::base64_decode(j.at("payload")));
 }
 
 bool Victron_modbus_tcp::Modbus_pdu_request_03::serialize(std::vector<uint8_t>* const out_frame) const
