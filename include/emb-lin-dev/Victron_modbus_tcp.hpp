@@ -46,10 +46,8 @@ public:
 
 	enum class RegisterType
 	{
-		INT8,
 		INT16,
 		INT32,
-		UINT8,
 		UINT16,
 		UINT32,
 		STRING
@@ -70,7 +68,7 @@ public:
 		std::string path;
 		int address;
 		RegisterType type;
-		size_t length;
+		size_t num_reg;
 		std::pair<int, int> scalefactor;
 		bool writable;
 	};
@@ -115,6 +113,26 @@ public:
 		int m_fd;
 	};
 
+	class Modbus_pdu_request_03
+	{
+	public:
+		uint8_t  func_code;
+		uint16_t reg_start;
+		uint16_t num_reg;
+
+		bool serialize(std::vector<uint8_t>* const out_frame) const;
+	};
+
+	class Modbus_pdu_response_03
+	{
+	public:
+		uint8_t  func_code;
+		uint8_t  len_byte;
+		std::vector<uint8_t> payload;
+
+		bool deserialize(const std::vector<uint8_t>& frame);
+	};
+
 	class Modbus_tcp_frame
 	{
 	public:
@@ -130,32 +148,45 @@ public:
 		// MODBUS Application Protocol (MBAP) header
 		uint16_t trx_id; // will be returned by the server, increment it
 		uint16_t protocol_id;
-		// uint16_t length; // length of unit_id + func_code + reg_id + payload
-		uint8_t unit_id;
-		
-		// Protocol Data Unit (PDU)
-		uint8_t func_code;
-		uint16_t reg_id;
-		std::vector<uint8_t> payload;
+		uint16_t length;
+		uint8_t  unit_id;
+		std::vector<uint8_t> pdu;
 
 		bool serialize(std::vector<uint8_t>* const out_frame) const;
 		bool deserialize(const std::vector<uint8_t>& frame);
 
+		bool deserialize_header(const std::vector<uint8_t>& frame);
+
 		bool is_frame_response_for(const Modbus_tcp_frame& other) const
 		{
-			return (trx_id == other.trx_id) && (protocol_id == other.protocol_id) && (unit_id == other.unit_id) && (reg_id == other.reg_id);
+			return 
+				(trx_id      == other.trx_id)      &&
+				(protocol_id == other.protocol_id) &&
+				(unit_id     == other.unit_id);
+		}
+
+		const std::vector<uint8_t>& get_payload() const
+		{
+			return pdu;
 		}
 
 		constexpr static uint16_t MBAP_HDR_LEN        = 7;
 		constexpr static uint16_t MBAP_PACKET_MIN_LEN = 10;
 	};
 
+
+
+	// class Modbus_tcp_frame
+	// {
+	// public:
+	// };
+
 	bool open(const std::string& server);
 	bool close();
 
 	bool read_serial(std::string* const out_serial);
 
-	bool send_cmd_resp(const Modbus_tcp_frame& cmd, const size_t resp_payload_len, Modbus_tcp_frame* out_resp);
+	bool send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_frame* out_resp);
 
 	bool read_register(const std::string& register_name, Modbus_tcp_frame* out_resp);
 
@@ -187,22 +218,16 @@ protected:
 		size_t ret = 0;
 		switch(regtype)
 		{
-			case RegisterType::INT8:
-			case RegisterType::UINT8:
-			{
-				ret = 1;
-				break;
-			}
 			case RegisterType::INT16:
 			case RegisterType::UINT16:
 			{
-				ret = 2;
+				ret = 1;
 				break;
 			}
 			case RegisterType::INT32:
 			case RegisterType::UINT32:
 			{
-				ret = 4;
+				ret = 2;
 				break;
 			}
 			default:
@@ -216,7 +241,7 @@ protected:
 	}
 
 	bool write_buf(const std::vector<uint8_t>& buf);
-	bool read_buf(const size_t payload_len, std::vector<uint8_t>* const buf);
+	bool read_buf(Victron_modbus_tcp::Modbus_tcp_frame* const buf);
 
 	std::shared_ptr<Socket_fd> m_fd;
 
@@ -228,3 +253,6 @@ protected:
 
 void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_tcp_frame& val);
 void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_tcp_frame& val);
+
+void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_pdu_request_03& val);
+void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_pdu_request_03& val);
