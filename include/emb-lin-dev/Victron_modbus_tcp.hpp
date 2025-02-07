@@ -13,6 +13,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <unistd.h>
+
 #include <atomic>
 #include <map>
 #include <memory>
