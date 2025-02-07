@@ -136,6 +136,12 @@ public:
 			return func_code & 0x80U;
 		}
 
+		uint8_t base_func_code() const
+		{
+			// mask off exception bit
+			return func_code & 0x7FU;
+		}
+
 		bool deserialize(const std::vector<uint8_t>& frame);
 	};
 
