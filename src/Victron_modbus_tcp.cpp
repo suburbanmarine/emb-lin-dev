@@ -81,19 +81,47 @@ void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_tcp_frame& val)
 	j = nlohmann::json{
 		{"trx_id",      val.trx_id},
 		{"protocol_id", val.protocol_id},
+		{"length",      val.length},
 		{"unit_id",     val.unit_id},
-		{"pdu",        val.pdu},
-		// {"payload",     fmt::format("{:02X}", fmt::join(val.payload, ""))}
+		{"pdu",         fmt::format("{:02X}", fmt::join(val.pdu, ""))}
 	};
 }
 void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_tcp_frame& val)
 {
 	j.at("trx_id").get_to(val.trx_id);
 	j.at("protocol_id").get_to(val.protocol_id);
+	j.at("length").get_to(val.length);
 	j.at("unit_id").get_to(val.unit_id);
-	j.at("pdu").get_to(val.pdu);
 
-/*
+	const std::string& pdu_hex = j.at("pdu");
+	if( (pdu_hex.size() % 2) != 0)
+	{
+		throw std::domain_error("pdu length must be multiple of two");
+	}
+
+	val.pdu.resize(pdu_hex.size() / 2);
+	for(size_t i = 0; i < pdu_hex.size(); i += 2)
+	{
+		const char temp[] = {pdu_hex[i], pdu_hex[i + 1], 0};
+		val.pdu[i / 2] = strtoul(temp, nullptr, 16);
+	}
+}
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Victron_modbus_tcp::Modbus_pdu_request_03, func_code, reg_start, num_reg);
+
+void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_pdu_response_03& val)
+{
+	j = nlohmann::json{
+		{"func_code", val.func_code},
+		{"len_byte",  val.len_byte},
+		{"payload",   fmt::format("{:02X}", fmt::join(val.payload, ""))}
+	};
+}
+void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_pdu_response_03& val)
+{
+	j.at("func_code").get_to(val.func_code);
+	j.at("len_byte").get_to(val.len_byte);
+
 	const std::string& payload_hex = j.at("payload");
 	if( (payload_hex.size() % 2) != 0)
 	{
@@ -106,11 +134,7 @@ void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_tcp_frame& va
 		const char temp[] = {payload_hex[i], payload_hex[i + 1], 0};
 		val.payload[i / 2] = strtoul(temp, nullptr, 16);
 	}
-*/
 }
-
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Victron_modbus_tcp::Modbus_pdu_request_03, func_code, reg_start, num_reg);
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Victron_modbus_tcp::Modbus_pdu_response_03, func_code, len_byte);
 
 bool Victron_modbus_tcp::Modbus_pdu_request_03::serialize(std::vector<uint8_t>* const out_frame) const
 {
@@ -144,7 +168,7 @@ bool Victron_modbus_tcp::Modbus_pdu_response_03::deserialize(const std::vector<u
 	{
 		return false;
 	}
-	
+
 	len_byte  = frame[1];
 
 	if(frame.size() < (2U+len_byte))
