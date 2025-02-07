@@ -25,6 +25,8 @@
 #include <linux/can/raw.h>
 #include <linux/can/error.h>
 
+#include <unistd.h>
+
 #include <array>
 #include <thread>
 
@@ -45,7 +47,7 @@ bool BIC_2200::BIC2200_Packet::to_can_frame(can_frame* const out_can_frame) cons
 	memset(out_can_frame, 0, sizeof(can_frame));
 
 	out_can_frame->can_id  = (addr & CAN_EFF_MASK) | CAN_EFF_FLAG;
-	out_can_frame->len     = payload.size() + 2;
+	out_can_frame->can_dlc     = payload.size() + 2;
 	out_can_frame->data[0] = (uint16_t(cmd) & 0x00FFU) >> 0;
 	out_can_frame->data[1] = (uint16_t(cmd) & 0xFF00U) >> 8;
 
@@ -56,12 +58,12 @@ bool BIC_2200::BIC2200_Packet::to_can_frame(can_frame* const out_can_frame) cons
 
 bool BIC_2200::BIC2200_Packet::from_can_frame(const can_frame& frame)
 {
-	if(frame.len > 8)
+	if(frame.can_dlc > 8)
 	{
 		return false;
 	}
 
-	if(frame.len < 2)
+	if(frame.can_dlc < 2)
 	{
 		return false;
 	}
@@ -84,8 +86,8 @@ bool BIC_2200::BIC2200_Packet::from_can_frame(const can_frame& frame)
 	addr = frame.can_id & CAN_EFF_MASK;
 	cmd  = static_cast<CMD_OPCODE>( (uint16_t(frame.data[1]) << 8) | (uint16_t(frame.data[0]) << 0) );
 
-	payload.resize(frame.len-2);
-	memcpy(payload.data(), frame.data+2, frame.len-2);
+	payload.resize(frame.can_dlc-2);
+	memcpy(payload.data(), frame.data+2, frame.can_dlc-2);
 
 	return true;
 }
@@ -630,7 +632,7 @@ bool BIC_2200::wait_tx_can_packet(const std::chrono::nanoseconds& max_wait_time,
 		return false;
 	}
 
-	ssize_t len = write(m_fd, &tx_frame, sizeof(can_frame));
+	ssize_t len = ::write(m_fd, &tx_frame, sizeof(can_frame));
 
 	if( ! m_tx_stopwatch.reset() )
 	{
@@ -695,7 +697,7 @@ bool BIC_2200::wait_rx_can_packet(const std::chrono::nanoseconds& max_wait_time,
 		return false;
 	}
 
-	ssize_t len = read(m_fd, out_rx_frame, sizeof(can_frame));
+	ssize_t len = ::read(m_fd, out_rx_frame, sizeof(can_frame));
 
 	if (len < 0)
 	{
