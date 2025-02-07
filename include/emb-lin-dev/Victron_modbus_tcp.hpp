@@ -261,6 +261,7 @@ protected:
 
 	constexpr static uint16_t TCP_PORT = 502U;
 	const static std::map<std::string, VictronModbusTcpRegister> VICTRON_REG_MAP;
+	const std::chrono::milliseconds MAX_READ_WAIT_TIME {2000};
 
 	std::recursive_mutex m_mutex;
 };

@@ -11,14 +11,21 @@
 
 #include "emb-lin-dev/Victron_modbus_tcp.hpp"
 
+#include "emb-lin-util/Stopwatch.hpp"
+#include "emb-lin-util/Timespec_util.hpp"
+
 #include <botan/base64.h>
 
 #include <spdlog/spdlog.h>
 #include <fmt/format.h>
 
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <netdb.h>
+#include <poll.h>
+#include <signal.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+
+
 
 #include <exception>
 
@@ -430,6 +437,19 @@ bool Victron_modbus_tcp::read_modbus_frame(Victron_modbus_tcp::Modbus_tcp_frame*
 
 	// TODO timeouts
 
+	pollfd read_fds[] = {
+		{.fd = m_fd->get_fd(), .events = POLLIN}
+	};
+
+	Stopwatch stopwatch;
+	if( ! stopwatch.start() )
+	{
+		return false;
+	}
+
+	sigset_t sigmask;
+	sigemptyset(&sigmask);
+
 	const ssize_t HDR_LEN = 7;
 	std::vector<uint8_t> header_buf;
 	header_buf.resize(HDR_LEN);
@@ -438,6 +458,25 @@ bool Victron_modbus_tcp::read_modbus_frame(Victron_modbus_tcp::Modbus_tcp_frame*
 		ssize_t num_read = 0;
 		do
 		{
+			std::chrono::nanoseconds t_now;
+			if( ! stopwatch.get_time(&t_now) )
+			{
+				return false;
+			}
+			timespec max_wait_ts = Timespec_util::from_chrono(MAX_READ_WAIT_TIME - t_now);
+
+			int ppoll_ret = ppoll(read_fds, sizeof(read_fds) / sizeof(pollfd), &max_wait_ts, &sigmask);
+			if(ppoll_ret < 0)
+			{
+				// TODO: log errno
+				return false;
+			}
+			else if(ppoll_ret == 0)
+			{
+				// no data
+				return false;
+			}
+
 			const ssize_t num_to_read = HDR_LEN - num_read;
 			const ssize_t ret = read(m_fd->get_fd(), header_buf.data() + num_read, num_to_read);
 			if( ret < 0 )
@@ -461,6 +500,25 @@ bool Victron_modbus_tcp::read_modbus_frame(Victron_modbus_tcp::Modbus_tcp_frame*
 		ssize_t num_read = 0;
 		do
 		{
+			std::chrono::nanoseconds t_now;
+			if( ! stopwatch.get_time(&t_now) )
+			{
+				return false;
+			}
+			timespec max_wait_ts = Timespec_util::from_chrono(MAX_READ_WAIT_TIME - t_now);
+
+			int ppoll_ret = ppoll(read_fds, sizeof(read_fds) / sizeof(pollfd), &max_wait_ts, &sigmask);
+			if(ppoll_ret < 0)
+			{
+				// TODO: log errno
+				return false;
+			}
+			else if(ppoll_ret == 0)
+			{
+				// no data
+				return false;
+			}
+
 			const ssize_t num_to_read = buf->pdu.size() - num_read;
 			const ssize_t ret = read(m_fd->get_fd(), buf->pdu.data() + num_read, num_to_read);
 			if( ret < 0 )
