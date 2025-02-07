@@ -141,7 +141,7 @@ bool Victron_modbus_tcp::Modbus_pdu_response_03::deserialize(const std::vector<u
 	func_code = frame[0];
 	len_byte  = frame[1];
 
-	if(frame.size() < (2+len_byte))
+	if(frame.size() < (2U+len_byte))
 	{
 		return false;
 	}
@@ -199,7 +199,7 @@ bool Victron_modbus_tcp::Modbus_tcp_frame::deserialize(const std::vector<uint8_t
 		return false;
 	}
 
-	if(frame.size() != (length+6))
+	if(frame.size() != (length+6U))
 	{
 		return false;
 	}
@@ -440,7 +440,7 @@ bool Victron_modbus_tcp::read_buf(Victron_modbus_tcp::Modbus_tcp_frame* const bu
 			}
 
 			num_read += ret;
-		} while(num_read != buf->pdu.size());	
+		} while(size_t(num_read) != buf->pdu.size());	
 	}
 
 	return true;
