@@ -117,6 +117,12 @@ bool Victron_modbus_tcp::Modbus_pdu_request_03::serialize(std::vector<uint8_t>* 
 	out_frame->resize(5);
 
 	(*out_frame)[0]  = func_code;
+
+	if(func_code != uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS))
+	{
+		return false;
+	}
+
 	(*out_frame)[1]  = (reg_start & 0xFF00U) >> 8;
 	(*out_frame)[2]  = (reg_start & 0x00FFU) >> 0;
 	(*out_frame)[3]  = (num_reg   & 0xFF00U) >> 8;
