@@ -139,6 +139,12 @@ bool Victron_modbus_tcp::Modbus_pdu_response_03::deserialize(const std::vector<u
 	}
 
 	func_code = frame[0];
+
+	if(func_code != uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS))
+	{
+		return false;
+	}
+	
 	len_byte  = frame[1];
 
 	if(frame.size() < (2U+len_byte))
