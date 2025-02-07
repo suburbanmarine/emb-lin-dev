@@ -338,12 +338,8 @@ bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_
 		return false;
 	}
 
-	size_t num_reg = 0;
-	if(reg_info->second.num_reg)
-	{
-		num_reg = reg_info->second.num_reg;
-	}
-	else
+	size_t num_reg = reg_info->second.num_reg;
+	if( num_reg == 0)
 	{
 		num_reg = get_regtype_payload_length(reg_info->second.type);
 	}
