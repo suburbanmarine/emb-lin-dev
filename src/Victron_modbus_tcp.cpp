@@ -228,6 +228,8 @@ Victron_modbus_tcp::~Victron_modbus_tcp()
 
 bool Victron_modbus_tcp::open(const std::string& server)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
 	m_fd.reset();
 
 	addrinfo* getaddrinfo_result;
@@ -274,6 +276,8 @@ bool Victron_modbus_tcp::open(const std::string& server)
 }
 bool Victron_modbus_tcp::close()
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+	    
 	m_fd.reset();
 	return true;
 }
@@ -297,6 +301,8 @@ bool Victron_modbus_tcp::read_serial(std::string* const out_serial)
 
 bool Victron_modbus_tcp::send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_frame* const out_resp)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
 	if( ! out_resp )
 	{
 		return false;
@@ -330,7 +336,6 @@ bool Victron_modbus_tcp::send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_f
 
 bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_pdu_response_03* const out_resp)
 {
-
 	auto reg_info = VICTRON_REG_MAP.find(register_name);
 	if(reg_info == VICTRON_REG_MAP.end())
 	{
@@ -380,6 +385,8 @@ bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_
 
 bool Victron_modbus_tcp::write_buf(const std::vector<uint8_t>& buf)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
 	if( ! is_open() )
 	{
 		return false;
@@ -404,6 +411,8 @@ bool Victron_modbus_tcp::write_buf(const std::vector<uint8_t>& buf)
 
 bool Victron_modbus_tcp::read_modbus_frame(Victron_modbus_tcp::Modbus_tcp_frame* const buf)
 {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
 	if( ! is_open() )
 	{
 		return false;

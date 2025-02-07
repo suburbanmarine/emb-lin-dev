@@ -17,6 +17,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <mutex>
 #include <vector>
 
 #include <cstdint>
@@ -249,6 +250,8 @@ protected:
 
 	constexpr static uint16_t TCP_PORT = 502U;
 	const static std::map<std::string, VictronModbusTcpRegister> VICTRON_REG_MAP;
+
+	std::recursive_mutex m_mutex;
 };
 
 void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_tcp_frame& val);
