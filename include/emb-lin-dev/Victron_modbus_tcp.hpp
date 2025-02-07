@@ -127,7 +127,7 @@ public:
 	{
 	public:
 		uint8_t  func_code;
-		uint8_t  len_byte;
+		uint8_t  length;
 		std::vector<uint8_t> payload;
 
 		bool deserialize(const std::vector<uint8_t>& frame);
@@ -186,9 +186,9 @@ public:
 
 	bool read_serial(std::string* const out_serial);
 
-	bool send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_frame* out_resp);
+	bool send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_frame* const out_resp);
 
-	bool read_register(const std::string& register_name, Modbus_tcp_frame* out_resp);
+	bool read_register(const std::string& register_name, Modbus_pdu_response_03* const out_resp);
 
 	bool is_open() const
 	{
@@ -241,7 +241,7 @@ protected:
 	}
 
 	bool write_buf(const std::vector<uint8_t>& buf);
-	bool read_buf(Victron_modbus_tcp::Modbus_tcp_frame* const buf);
+	bool read_modbus_frame(Victron_modbus_tcp::Modbus_tcp_frame* const buf);
 
 	std::shared_ptr<Socket_fd> m_fd;
 
@@ -256,3 +256,6 @@ void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_tcp_frame& va
 
 void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_pdu_request_03& val);
 void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_pdu_request_03& val);
+
+void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_pdu_response_03& val);
+void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_pdu_response_03& val);

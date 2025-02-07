@@ -94,7 +94,6 @@ void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_tcp_frame& va
 	j.at("protocol_id").get_to(val.protocol_id);
 	j.at("length").get_to(val.length);
 	j.at("unit_id").get_to(val.unit_id);
-
 	val.pdu = Botan::unlock(Botan::base64_decode(j.at("pdu")));
 }
 
@@ -104,14 +103,14 @@ void to_json(nlohmann::json& j, const Victron_modbus_tcp::Modbus_pdu_response_03
 {
 	j = nlohmann::json{
 		{"func_code", val.func_code},
-		{"len_byte",  val.len_byte},
+		{"length",  val.length},
 		{"payload",   Botan::base64_encode(val.payload.data(), val.payload.size())}
 	};
 }
 void from_json(const nlohmann::json& j, Victron_modbus_tcp::Modbus_pdu_response_03& val)
 {
 	j.at("func_code").get_to(val.func_code);
-	j.at("len_byte").get_to(val.len_byte);
+	j.at("length").get_to(val.length);
 	val.payload = Botan::unlock(Botan::base64_decode(j.at("payload")));
 }
 
@@ -148,9 +147,9 @@ bool Victron_modbus_tcp::Modbus_pdu_response_03::deserialize(const std::vector<u
 		return false;
 	}
 
-	len_byte  = frame[1];
+	length = frame[1];
 
-	if(frame.size() < (2U+len_byte))
+	if(frame.size() < (2U+length))
 	{
 		return false;
 	}
@@ -281,8 +280,8 @@ bool Victron_modbus_tcp::close()
 
 bool Victron_modbus_tcp::read_serial(std::string* const out_serial)
 {
-	Modbus_tcp_frame resp_frame;
-	if( ! read_register("/Serial", &resp_frame) )
+	Modbus_pdu_response_03 resp_pdu;
+	if( ! read_register("/Serial", &resp_pdu) )
 	{
 		return false;
 	}
@@ -290,13 +289,13 @@ bool Victron_modbus_tcp::read_serial(std::string* const out_serial)
 	if(out_serial)
 	{
 		out_serial->clear();
-		// out_serial->insert(out_serial->end(), resp_frame.payload.begin(), resp_frame.payload.end());
+		out_serial->insert(out_serial->end(), resp_pdu.payload.begin(), resp_pdu.payload.end());
 	}
 
 	return true;
 }
 
-bool Victron_modbus_tcp::send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_frame* out_resp)
+bool Victron_modbus_tcp::send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_frame* const out_resp)
 {
 	if( ! out_resp )
 	{
@@ -314,7 +313,7 @@ bool Victron_modbus_tcp::send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_f
 		return false;
 	}
 
-	if( ! read_buf(out_resp) )
+	if( ! read_modbus_frame(out_resp) )
 	{
 		SPDLOG_ERROR("send_cmd_resp read failed");
 		return false;
@@ -329,7 +328,7 @@ bool Victron_modbus_tcp::send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_f
 	return true;
 }
 
-bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_tcp_frame* out_resp)
+bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_pdu_response_03* const out_resp)
 {
 
 	auto reg_info = VICTRON_REG_MAP.find(register_name);
@@ -368,7 +367,14 @@ bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_
 		return false;
 	}
 
-	if( ! send_cmd_resp(cmd_frame, out_resp) )
+	Modbus_tcp_frame resp_frame;
+	if( ! send_cmd_resp(cmd_frame, &resp_frame) )
+	{
+		return false;
+	}
+
+	Modbus_pdu_response_03 resp_pdu;
+	if( ! out_resp->deserialize(resp_frame.pdu) )
 	{
 		return false;
 	}
@@ -400,14 +406,14 @@ bool Victron_modbus_tcp::write_buf(const std::vector<uint8_t>& buf)
 	return true;
 }
 
-bool Victron_modbus_tcp::read_buf(Victron_modbus_tcp::Modbus_tcp_frame* const buf)
+bool Victron_modbus_tcp::read_modbus_frame(Victron_modbus_tcp::Modbus_tcp_frame* const buf)
 {
 	if( ! is_open() )
 	{
 		return false;
 	}
 
-	// TODO read header, then read more
+	// TODO timeouts
 
 	const ssize_t HDR_LEN = 7;
 	std::vector<uint8_t> header_buf;
