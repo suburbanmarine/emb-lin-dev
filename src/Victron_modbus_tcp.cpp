@@ -374,8 +374,18 @@ bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_
 		return false;
 	}
 
-	Modbus_pdu_response_03 resp_pdu;
 	if( ! out_resp->deserialize(resp_frame.pdu) )
+	{
+		return false;
+	}
+
+	if(out_resp->is_exception())
+	{
+		//TODO handle exceptions
+		return false;
+	}
+
+	if(pdu.func_code != out_resp->func_code)
 	{
 		return false;
 	}

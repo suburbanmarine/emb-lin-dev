@@ -131,6 +131,11 @@ public:
 		uint8_t  length;
 		std::vector<uint8_t> payload;
 
+		bool is_exception() const
+		{
+			return func_code & 0x80U;
+		}
+
 		bool deserialize(const std::vector<uint8_t>& frame);
 	};
 
