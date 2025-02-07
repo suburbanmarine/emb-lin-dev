@@ -70,6 +70,7 @@ public:
 		std::string path;
 		int address;
 		RegisterType type;
+		size_t length;
 		std::pair<int, int> scalefactor;
 		bool writable;
 	};
