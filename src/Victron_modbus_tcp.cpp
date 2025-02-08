@@ -471,6 +471,7 @@ bool Victron_modbus_tcp::read_modbus_frame(Victron_modbus_tcp::Modbus_tcp_frame*
 			if(ppoll_ret < 0)
 			{
 				// TODO: log errno
+				m_fd.reset();
 				return false;
 			}
 			else if(ppoll_ret == 0)
@@ -513,6 +514,7 @@ bool Victron_modbus_tcp::read_modbus_frame(Victron_modbus_tcp::Modbus_tcp_frame*
 			if(ppoll_ret < 0)
 			{
 				// TODO: log errno
+				m_fd.reset();
 				return false;
 			}
 			else if(ppoll_ret == 0)
