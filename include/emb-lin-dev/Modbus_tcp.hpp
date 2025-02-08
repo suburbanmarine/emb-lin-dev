@@ -165,3 +165,12 @@ void from_json(const nlohmann::json& j, Modbus_pdu_request_03& val);
 
 void to_json(nlohmann::json& j, const Modbus_pdu_response_03& val);
 void from_json(const nlohmann::json& j, Modbus_pdu_response_03& val);
+
+void to_json(nlohmann::json& j, const Modbus_pdu_request_16& val);
+void from_json(const nlohmann::json& j, Modbus_pdu_request_16& val);
+
+void to_json(nlohmann::json& j, const Modbus_pdu_response_16& val);
+void from_json(const nlohmann::json& j, Modbus_pdu_response_16& val);
+
+
+

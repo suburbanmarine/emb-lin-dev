@@ -60,6 +60,59 @@ void from_json(const nlohmann::json& j, Modbus_pdu_response_03& val)
 	val.payload = Botan::unlock(Botan::base64_decode(j.at("payload")));
 }
 
+void to_json(nlohmann::json& j, const Modbus_pdu_request_16& val)
+{
+	j = nlohmann::json{
+		{"func_code", val.func_code},
+		{"reg_start", val.reg_start},
+		{"num_reg",   val.num_reg},
+		{"length",    val.length},
+		{"payload",   Botan::base64_encode(val.payload.data(), val.payload.size())}
+	};
+}
+void from_json(const nlohmann::json& j, Modbus_pdu_request_16& val)
+{
+	j.at("func_code").get_to(val.func_code);
+	j.at("reg_start").get_to(val.reg_start);
+	j.at("num_reg").get_to(val.num_reg);
+	j.at("length").get_to(val.length);
+	val.payload = Botan::unlock(Botan::base64_decode(j.at("payload")));
+}
+
+void to_json(nlohmann::json& j, const Modbus_pdu_response_16& val)
+{
+	j = nlohmann::json{
+		{"func_code", val.func_code},
+		{"reg_start", val.reg_start},
+		{"num_reg",   val.num_reg},
+	};
+
+	if(val.exception_code.has_value())
+	{
+		j["exception_code"] = val.exception_code.value();
+	}
+	else
+	{
+		j["exception_code"] = nullptr;
+	}
+}
+void from_json(const nlohmann::json& j, Modbus_pdu_response_16& val)
+{
+	j.at("func_code").get_to(val.func_code);
+	j.at("reg_start").get_to(val.reg_start);
+	j.at("num_reg").get_to(val.num_reg);
+	if(j.at("exception_code").is_null())
+	{
+		val.exception_code.reset();
+	}
+	else
+	{
+		uint8_t temp;
+		j.at("exception_code").get_to(temp);
+		val.exception_code = temp;
+	}
+}
+
 bool Modbus_pdu_request_03::serialize(std::vector<uint8_t>* const out_frame) const
 {
 	out_frame->resize(5);

@@ -99,7 +99,14 @@ public:
 
 	bool send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_frame* const out_resp);
 
+	// false on error, io occured if true
+	// check out_resp->is_exception if returns true
 	bool read_register(const std::string& register_name, Modbus_pdu_response_03* const out_resp);
+	
+	// false on error, io occured if true
+	// check out_resp->is_exception if returns true
+	bool write_register(const std::string& register_name, const double val, Modbus_pdu_response_16* const out_resp);
+	bool write_register(const Modbus_pdu_request_16& val, Modbus_pdu_response_16* const out_resp);
 
 	bool is_open() const
 	{
@@ -121,8 +128,6 @@ public:
 
 		return true;
 	}
-
-protected:
 
 	static size_t get_regtype_payload_length(const RegisterType& regtype)
 	{
@@ -150,6 +155,8 @@ protected:
 
 		return ret;
 	}
+protected:
+
 
 	bool write_modbus_frame(const std::vector<uint8_t>& buf);
 	bool read_modbus_frame(Modbus_tcp_frame* const buf);

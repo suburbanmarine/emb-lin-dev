@@ -253,12 +253,82 @@ bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_
 		return false;
 	}
 
-	if(out_resp->is_exception())
+	return true;
+}
+
+bool Victron_modbus_tcp::write_register(const std::string& register_name, const double val, Modbus_pdu_response_16* const out_resp)
+{
+	auto reg_info = VICTRON_REG_MAP.find(register_name);
+	if(reg_info == VICTRON_REG_MAP.end())
+	{
+		// add metadata about register to VICTRON_REG_MAP
+		return false;
+	}
+
+	double scaled_val = val;
+ 	scaled_val *= double(reg_info->second.scalefactor.first);
+ 	scaled_val /= double(reg_info->second.scalefactor.second);
+
+ 	const long long int_scaled_val = std::llround(scaled_val);
+
+	Modbus_pdu_request_16 pdu;
+	pdu.func_code = uint8_t(FUNCTION_CODE::WRITE_MULTIPLE_REGISTERS);
+	pdu.reg_start = reg_info->second.address;
+	pdu.num_reg   = Victron_modbus_tcp::get_regtype_payload_length(reg_info->second.type);
+
+	switch(reg_info->second.type)
+	{
+		case RegisterType::INT16:
+		case RegisterType::UINT16:
+		{
+			pdu.length     = 2;
+			pdu.payload.resize(2);
+			pdu.payload[0] = (int_scaled_val & 0xFF00U) >> 8;
+			pdu.payload[1] = (int_scaled_val & 0x00FFU) >> 0;
+			break;
+		}
+		case RegisterType::INT32:
+		case RegisterType::UINT32:
+		{
+			pdu.length     = 4;
+			pdu.payload.resize(4);
+			pdu.payload[0] = (int_scaled_val & 0xFF000000U) >> 24;
+			pdu.payload[1] = (int_scaled_val & 0x00FF0000U) >> 16;
+			pdu.payload[2] = (int_scaled_val & 0x0000FF00U) >> 8;
+			pdu.payload[3] = (int_scaled_val & 0x000000FFU) >> 0;
+			break;
+		}
+		default:
+		{
+			return false;
+		}
+	}
+
+	return write_register(pdu, out_resp);
+}
+
+bool Victron_modbus_tcp::write_register(const Modbus_pdu_request_16& pdu, Modbus_pdu_response_16* const out_resp)
+{
+	Modbus_tcp_frame cmd_frame;
+	cmd_frame.trx_id  = req_id++;
+	cmd_frame.unit_id = uint8_t(CERBO_GX_UNIT_ID::VECAN);
+	if( ! pdu.serialize(&cmd_frame.pdu) )
 	{
 		return false;
 	}
 
-	return true;
+	Modbus_tcp_frame resp_frame;
+	if( ! send_cmd_resp(cmd_frame, &resp_frame) )
+	{
+		return false;
+	}
+
+	if( ! out_resp->deserialize(resp_frame.pdu) )
+	{
+		return false;
+	}
+
+	return true;	
 }
 
 bool Victron_modbus_tcp::write_modbus_frame(const std::vector<uint8_t>& buf)
