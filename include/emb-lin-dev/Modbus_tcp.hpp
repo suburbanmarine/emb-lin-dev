@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <optional>
 
 #include <cstdint>
 
@@ -33,6 +34,34 @@ enum class ERROR : uint8_t
 	GATEWAY_TARGET_DEVICE_FAILED_TO_RESPOND = 0x0BU
 };
 
+class Modbus_pdu_response_base
+{
+public:
+	uint8_t func_code;
+	std::optional<uint8_t> exception_code;
+
+	Modbus_pdu_response_base()
+	{
+
+	}
+	virtual ~Modbus_pdu_response_base()
+	{
+
+	}
+
+	// check exception bit
+	bool is_exception() const
+	{
+		return func_code & 0x80U;
+	}
+
+	// mask off exception bit
+	uint8_t base_func_code() const
+	{
+		return func_code & 0x7FU;
+	}
+};
+
 class Modbus_pdu_request_03
 {
 public:
@@ -43,23 +72,51 @@ public:
 	bool serialize(std::vector<uint8_t>* const out_frame) const;
 };
 
-class Modbus_pdu_response_03
+class Modbus_pdu_response_03 : public Modbus_pdu_response_base
+{
+public:
+	uint8_t length;
+	std::vector<uint8_t> payload;
+
+	bool deserialize(const std::vector<uint8_t>& frame);
+};
+
+class Modbus_pdu_request_06
 {
 public:
 	uint8_t  func_code;
+	uint16_t reg_start;
+	uint16_t reg_val;
+
+	bool serialize(std::vector<uint8_t>* const out_frame) const;
+};
+
+class Modbus_pdu_response_06 : public Modbus_pdu_response_base
+{
+public:	
+	uint16_t reg_start;
+	uint16_t num_reg;
+
+	bool deserialize(const std::vector<uint8_t>& frame);
+};
+
+class Modbus_pdu_request_16
+{
+public:
+	uint8_t  func_code;
+	uint16_t reg_start;
+	uint16_t num_reg;
 	uint8_t  length;
 	std::vector<uint8_t> payload;
 
-	bool is_exception() const
-	{
-		return func_code & 0x80U;
-	}
+	bool serialize(std::vector<uint8_t>* const out_frame) const;
+};
 
-	uint8_t base_func_code() const
-	{
-		// mask off exception bit
-		return func_code & 0x7FU;
-	}
+class Modbus_pdu_response_16 : public Modbus_pdu_response_base
+{
+public:
+	uint16_t reg_start;
+	uint16_t num_reg;
 
 	bool deserialize(const std::vector<uint8_t>& frame);
 };
@@ -94,11 +151,6 @@ public:
 			(trx_id      == other.trx_id)      &&
 			(protocol_id == other.protocol_id) &&
 			(unit_id     == other.unit_id);
-	}
-
-	const std::vector<uint8_t>& get_payload() const
-	{
-		return pdu;
 	}
 
 	constexpr static uint16_t MBAP_HDR_LEN        = 7;

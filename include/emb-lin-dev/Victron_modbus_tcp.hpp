@@ -151,7 +151,7 @@ protected:
 		return ret;
 	}
 
-	bool write_buf(const std::vector<uint8_t>& buf);
+	bool write_modbus_frame(const std::vector<uint8_t>& buf);
 	bool read_modbus_frame(Modbus_tcp_frame* const buf);
 
 	std::shared_ptr<Socket_fd> m_fd;

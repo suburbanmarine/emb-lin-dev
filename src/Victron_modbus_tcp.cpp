@@ -159,6 +159,11 @@ bool Victron_modbus_tcp::read_serial(std::string* const out_serial)
 		return false;
 	}
 
+	if(resp_pdu.is_exception())
+	{
+		return false;
+	}
+
 	if(out_serial)
 	{
 		out_serial->clear();
@@ -183,7 +188,7 @@ bool Victron_modbus_tcp::send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_f
 		return false;
 	}
 
-	if( ! write_buf(buf) )
+	if( ! write_modbus_frame(buf) )
 	{
 		return false;
 	}
@@ -248,21 +253,15 @@ bool Victron_modbus_tcp::read_register(const std::string& register_name, Modbus_
 		return false;
 	}
 
-	if(pdu.func_code != out_resp->base_func_code())
-	{
-		return false;
-	}
-
 	if(out_resp->is_exception())
 	{
-		//TODO handle exceptions
 		return false;
 	}
 
 	return true;
 }
 
-bool Victron_modbus_tcp::write_buf(const std::vector<uint8_t>& buf)
+bool Victron_modbus_tcp::write_modbus_frame(const std::vector<uint8_t>& buf)
 {
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
 

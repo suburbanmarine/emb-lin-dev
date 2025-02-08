@@ -29,15 +29,34 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Modbus_pdu_request_03, func_code, reg_start, 
 void to_json(nlohmann::json& j, const Modbus_pdu_response_03& val)
 {
 	j = nlohmann::json{
-		{"func_code", val.func_code},
-		{"length",  val.length},
-		{"payload",   Botan::base64_encode(val.payload.data(), val.payload.size())}
+		{"func_code",       val.func_code},
+		{"length",          val.length},
+		{"payload",         Botan::base64_encode(val.payload.data(), val.payload.size())},
 	};
+
+	if(val.exception_code.has_value())
+	{
+		j["exception_code"] = val.exception_code.value();
+	}
+	else
+	{
+		j["exception_code"] = nullptr;
+	}
 }
 void from_json(const nlohmann::json& j, Modbus_pdu_response_03& val)
 {
 	j.at("func_code").get_to(val.func_code);
 	j.at("length").get_to(val.length);
+	if(j.at("exception_code").is_null())
+	{
+		val.exception_code.reset();
+	}
+	else
+	{
+		uint8_t temp;
+		j.at("exception_code").get_to(temp);
+		val.exception_code = temp;
+	}
 	val.payload = Botan::unlock(Botan::base64_decode(j.at("payload")));
 }
 
@@ -69,19 +88,28 @@ bool Modbus_pdu_response_03::deserialize(const std::vector<uint8_t>& frame)
 
 	func_code = frame[0];
 
-	if(func_code != uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS))
+	if(base_func_code() != uint8_t(FUNCTION_CODE::READ_HOLDING_REGISTERS))
 	{
 		return false;
 	}
 
-	length = frame[1];
-
-	if(frame.size() < (2U+length))
+	if(is_exception())
 	{
-		return false;
+		exception_code = frame[1];
 	}
+	else
+	{
+		exception_code.reset();
 
-	payload.assign(frame.data()+2, frame.data()+frame.size());
+		length = frame[1];
+
+		if(frame.size() < (2U+length))
+		{
+			return false;
+		}
+
+		payload.assign(frame.data()+2, frame.data()+frame.size());
+	}
 
 	return true;
 }
@@ -140,6 +168,126 @@ bool Modbus_tcp_frame::deserialize(const std::vector<uint8_t>& frame)
 	}
 
 	pdu.assign(frame.data() + 7, frame.data() + frame.size());
+
+	return true;
+}
+
+bool Modbus_pdu_request_06::serialize(std::vector<uint8_t>* const out_frame) const
+{
+	out_frame->resize(5);
+
+	(*out_frame)[0]  = func_code;
+
+	if(func_code != uint8_t(FUNCTION_CODE::WRITE_SINGLE_REGISTER))
+	{
+		return false;
+	}
+
+	(*out_frame)[1]  = (reg_start & 0xFF00U) >> 8;
+	(*out_frame)[2]  = (reg_start & 0x00FFU) >> 0;
+	(*out_frame)[3]  = (reg_val   & 0xFF00U) >> 8;
+	(*out_frame)[4]  = (reg_val   & 0x00FFU) >> 0;
+
+	return true;
+}
+bool Modbus_pdu_response_06::deserialize(const std::vector<uint8_t>& frame)
+{
+	if(frame.size() < 2)
+	{
+		return false;
+	}
+
+	func_code = frame[0];
+
+	if(base_func_code() != uint8_t(FUNCTION_CODE::WRITE_SINGLE_REGISTER))
+	{
+		return false;
+	}
+
+	if(is_exception())
+	{
+		exception_code = frame[1];
+	}
+	else
+	{
+		if(frame.size() != 5)
+		{
+			return false;
+		}
+
+		exception_code.reset();
+	
+		reg_start = (uint16_t(frame[1]) << 8) | (uint16_t(frame[2]) << 0);
+		num_reg   = (uint16_t(frame[3]) << 8) | (uint16_t(frame[4]) << 0);
+	}
+
+	return true;
+}
+bool Modbus_pdu_request_16::serialize(std::vector<uint8_t>* const out_frame) const
+{
+	if(func_code != uint8_t(FUNCTION_CODE::WRITE_MULTIPLE_REGISTERS))
+	{
+		return false;
+	}
+
+	if(payload.size() > 255)
+	{
+		return false;
+	}
+
+	if((payload.size() % 2) != 0)
+	{
+		return false;
+	}
+
+	if(payload.size() != (num_reg*2))
+	{
+		return false;
+	}
+
+	out_frame->resize(6 + payload.size());
+
+	(*out_frame)[0]  = func_code;
+	(*out_frame)[1]  = (reg_start      & 0xFF00U) >> 8;
+	(*out_frame)[2]  = (reg_start      & 0x00FFU) >> 0;
+	(*out_frame)[3]  = (num_reg        & 0xFF00U) >> 8;
+	(*out_frame)[4]  = (num_reg        & 0x00FFU) >> 0;
+	(*out_frame)[5]  = (payload.size() & 0x00FFU) >> 0;
+
+	memcpy(out_frame->data() + 6, payload.data(), payload.size());
+
+	return true;
+}
+bool Modbus_pdu_response_16::deserialize(const std::vector<uint8_t>& frame)
+{
+	if(frame.size() < 2)
+	{
+		return false;
+	}
+
+	func_code = frame[0];
+
+	if(base_func_code() != uint8_t(FUNCTION_CODE::WRITE_MULTIPLE_REGISTERS))
+	{
+		return false;
+	}
+
+	if(is_exception())
+	{
+		exception_code = frame[1];
+	}
+	else
+	{
+		if(frame.size() != 5)
+		{
+			return false;
+		}
+
+		exception_code.reset();
+
+		reg_start = (uint16_t(frame[1]) << 8) | (uint16_t(frame[2]) << 0);
+		num_reg   = (uint16_t(frame[3]) << 8) | (uint16_t(frame[4]) << 0);
+	}
 
 	return true;
 }
