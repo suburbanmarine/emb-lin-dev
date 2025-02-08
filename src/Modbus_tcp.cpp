@@ -96,6 +96,9 @@ bool Modbus_pdu_response_03::deserialize(const std::vector<uint8_t>& frame)
 	if(is_exception())
 	{
 		exception_code = frame[1];
+
+		length = 0;
+		payload.clear();
 	}
 	else
 	{
@@ -207,6 +210,9 @@ bool Modbus_pdu_response_06::deserialize(const std::vector<uint8_t>& frame)
 	if(is_exception())
 	{
 		exception_code = frame[1];
+
+		reg_start = 0;
+		num_reg   = 0;
 	}
 	else
 	{
@@ -275,6 +281,9 @@ bool Modbus_pdu_response_16::deserialize(const std::vector<uint8_t>& frame)
 	if(is_exception())
 	{
 		exception_code = frame[1];
+
+		reg_start = 0;
+		num_reg   = 0;
 	}
 	else
 	{
