@@ -17,16 +17,14 @@
 
 #include <unistd.h>
 
-#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
-#include <mutex>
 #include <vector>
 
 #include <cstdint>
 
-class Victron_modbus_tcp
+class Victron_modbus_tcp : public Modbus_tcp_io
 {
 public:
 	Victron_modbus_tcp();
@@ -52,52 +50,7 @@ public:
 		bool writable;
 	};
 
-	class Socket_fd
-	{
-	public:
-		Socket_fd(int fd) : m_fd(fd)
-		{
-
-		}
-		~Socket_fd()
-		{
-			close();
-		}
-
-		bool close()
-		{
-			if(m_fd < 0)
-			{
-				return true;
-			}
-
-			const int ret = ::close(m_fd);
-			
-			m_fd = -1;
-
-			return 0 == ret;
-		}
-
-		int get_fd() const
-		{
-			return m_fd;
-		}
-
-		bool is_open() const
-		{
-			return m_fd >= 0;
-		}
-
-	protected:
-		int m_fd;
-	};
-
-	bool open(const std::string& server);
-	bool close();
-
 	bool read_serial(std::string* const out_serial);
-
-	bool send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_frame* const out_resp);
 
 	// false on error, io occured if true
 	// check out_resp->is_exception if returns true
@@ -107,11 +60,6 @@ public:
 	// check out_resp->is_exception if returns true
 	bool write_register(const std::string& register_name, const double val, Modbus_pdu_response_16* const out_resp);
 	bool write_register(const Modbus_pdu_request_16& val, Modbus_pdu_response_16* const out_resp);
-
-	bool is_open() const
-	{
-		return m_fd && m_fd->is_open();
-	}
 
 	static bool get_register_metadata(const std::string& dbus_name, VictronModbusTcpRegister* const out_metadata)
 	{
@@ -157,17 +105,6 @@ public:
 	}
 protected:
 
-
-	bool write_modbus_frame(const std::vector<uint8_t>& buf);
-	bool read_modbus_frame(Modbus_tcp_frame* const buf);
-
-	std::shared_ptr<Socket_fd> m_fd;
-
-	std::atomic<uint16_t> req_id;
-
-	constexpr static uint16_t TCP_PORT = 502U;
 	const static std::map<std::string, VictronModbusTcpRegister> VICTRON_REG_MAP;
-	const static std::chrono::milliseconds MAX_READ_WAIT_TIME;
 
-	std::recursive_mutex m_mutex;
 };

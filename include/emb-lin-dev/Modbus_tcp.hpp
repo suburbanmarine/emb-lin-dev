@@ -13,9 +13,11 @@
 
 #include <nlohmann/json.hpp>
 
+#include <atomic>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
-#include <optional>
 
 #include <cstdint>
 
@@ -184,4 +186,70 @@ void to_json(nlohmann::json& j, const Modbus_pdu_response_16& val);
 void from_json(const nlohmann::json& j, Modbus_pdu_response_16& val);
 
 
+class Modbus_tcp_io
+{
+public:
+	class Socket_fd
+	{
+	public:
+		Socket_fd(int fd) : m_fd(fd)
+		{
 
+		}
+		~Socket_fd()
+		{
+			close();
+		}
+
+		bool close()
+		{
+			if(m_fd < 0)
+			{
+				return true;
+			}
+
+			const int ret = ::close(m_fd);
+			
+			m_fd = -1;
+
+			return 0 == ret;
+		}
+
+		int get_fd() const
+		{
+			return m_fd;
+		}
+
+		bool is_open() const
+		{
+			return m_fd >= 0;
+		}
+
+	protected:
+		int m_fd;
+	};
+
+	Modbus_tcp_io();
+	virtual ~Modbus_tcp_io();
+	bool open(const std::string& server);
+	bool close();
+
+	bool is_open() const
+	{
+		return m_fd && m_fd->is_open();
+	}
+
+	bool send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_frame* const out_resp);
+
+protected:
+	bool write_modbus_frame(const std::vector<uint8_t>& buf);
+	bool read_modbus_frame(Modbus_tcp_frame* const buf);
+
+	std::shared_ptr<Socket_fd> m_fd;
+	std::atomic<uint16_t> req_id;
+
+	constexpr static uint16_t TCP_PORT = 502U;
+	const static std::chrono::milliseconds MAX_READ_WAIT_TIME;
+
+	std::recursive_mutex m_mutex;
+};

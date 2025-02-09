@@ -11,10 +11,21 @@
 
 #include "emb-lin-dev/Modbus_tcp.hpp"
 
+#include "emb-lin-util/Stopwatch.hpp"
+#include "emb-lin-util/Timespec_util.hpp"
+
 #include <botan/base64.h>
 
 #include <spdlog/spdlog.h>
-#include <fmt/ranges.h>
+
+#include <netdb.h>
+#include <poll.h>
+#include <signal.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <cstring>
 
 void to_json(nlohmann::json& j, const Modbus_tcp_frame& val)
 {
@@ -360,6 +371,244 @@ bool Modbus_pdu_response_16::deserialize(const std::vector<uint8_t>& frame)
 
 		reg_start = (uint16_t(frame[1]) << 8) | (uint16_t(frame[2]) << 0);
 		num_reg   = (uint16_t(frame[3]) << 8) | (uint16_t(frame[4]) << 0);
+	}
+
+	return true;
+}
+
+const std::chrono::milliseconds Modbus_tcp_io::MAX_READ_WAIT_TIME = std::chrono::milliseconds(2000);
+
+Modbus_tcp_io::Modbus_tcp_io() : req_id(0)
+{
+	
+}
+Modbus_tcp_io::~Modbus_tcp_io()
+{
+	close();
+}
+
+bool Modbus_tcp_io::open(const std::string& server)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
+	m_fd.reset();
+
+	addrinfo* getaddrinfo_result;
+
+	addrinfo hints;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_flags    = 0;
+	hints.ai_family   = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
+	int ret = getaddrinfo(server.c_str(), fmt::format("{:d}", TCP_PORT).c_str(), &hints, &getaddrinfo_result);
+	if(ret < 0)
+	{
+		return false;
+	}
+
+	for(addrinfo* a = getaddrinfo_result; a != nullptr; a = a->ai_next)
+	{
+		// m_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		// if(m_fd < 0)
+		// {
+		// 	return false;
+		// }
+		int temp_fd = socket(a->ai_family, a->ai_socktype, a->ai_protocol);
+		if(m_fd < 0)
+		{
+			continue;
+		}
+
+		std::shared_ptr<Socket_fd> sock = std::make_shared<Socket_fd>(temp_fd);
+		ret = connect(temp_fd, a->ai_addr, a->ai_addrlen);
+		if(ret < 0)
+		{
+			continue;
+		}
+		else
+		{
+			m_fd = sock;
+			break;
+		}
+	}
+
+	return m_fd != nullptr;
+}
+bool Modbus_tcp_io::close()
+{
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+	    
+	m_fd.reset();
+	return true;
+}
+
+bool Modbus_tcp_io::write_modbus_frame(const std::vector<uint8_t>& buf)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
+	if( ! is_open() )
+	{
+		return false;
+	}
+
+	size_t num_written = 0;
+	do
+	{
+		const ssize_t num_to_write = buf.size() - num_written;
+		const ssize_t ret = write(m_fd->get_fd(), buf.data() + num_written, num_to_write);
+		if( ret < 0 )
+		{
+			m_fd.reset();
+			return false;
+		}
+
+		num_written += ret;
+	} while(num_written != buf.size());
+	
+	return true;
+}
+
+bool Modbus_tcp_io::read_modbus_frame(Modbus_tcp_frame* const buf)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
+	if( ! is_open() )
+	{
+		return false;
+	}
+
+	// TODO timeouts
+
+	pollfd read_fds[] = {
+		{.fd = m_fd->get_fd(), .events = POLLIN}
+	};
+
+	Stopwatch stopwatch;
+	if( ! stopwatch.start() )
+	{
+		return false;
+	}
+
+	sigset_t sigmask;
+	sigemptyset(&sigmask);
+
+	const ssize_t HDR_LEN = 7;
+	std::vector<uint8_t> header_buf;
+	header_buf.resize(HDR_LEN);
+
+	{
+		ssize_t num_read = 0;
+		do
+		{
+			std::chrono::nanoseconds t_now;
+			if( ! stopwatch.get_time(&t_now) )
+			{
+				return false;
+			}
+			timespec max_wait_ts = Timespec_util::from_chrono(MAX_READ_WAIT_TIME - t_now);
+
+			int ppoll_ret = ppoll(read_fds, sizeof(read_fds) / sizeof(pollfd), &max_wait_ts, &sigmask);
+			if(ppoll_ret < 0)
+			{
+				// TODO: log errno
+				m_fd.reset();
+				return false;
+			}
+			else if(ppoll_ret == 0)
+			{
+				// no data
+				return false;
+			}
+
+			const ssize_t num_to_read = HDR_LEN - num_read;
+			const ssize_t ret = read(m_fd->get_fd(), header_buf.data() + num_read, num_to_read);
+			if( ret < 0 )
+			{
+				m_fd.reset();
+				return false;
+			}
+
+			num_read += ret;
+		} while(num_read != HDR_LEN);
+	}
+
+	if( ! buf->deserialize_header(header_buf) )
+	{
+		SPDLOG_ERROR("deserialize_header failed");
+		return false;
+	}
+
+	buf->pdu.resize(buf->length - 1);
+	{
+		ssize_t num_read = 0;
+		do
+		{
+			std::chrono::nanoseconds t_now;
+			if( ! stopwatch.get_time(&t_now) )
+			{
+				return false;
+			}
+			timespec max_wait_ts = Timespec_util::from_chrono(MAX_READ_WAIT_TIME - t_now);
+
+			int ppoll_ret = ppoll(read_fds, sizeof(read_fds) / sizeof(pollfd), &max_wait_ts, &sigmask);
+			if(ppoll_ret < 0)
+			{
+				// TODO: log errno
+				m_fd.reset();
+				return false;
+			}
+			else if(ppoll_ret == 0)
+			{
+				// no data
+				return false;
+			}
+
+			const ssize_t num_to_read = buf->pdu.size() - num_read;
+			const ssize_t ret = read(m_fd->get_fd(), buf->pdu.data() + num_read, num_to_read);
+			if( ret < 0 )
+			{
+				m_fd.reset();
+				return false;
+			}
+
+			num_read += ret;
+		} while(size_t(num_read) != buf->pdu.size());	
+	}
+
+	return true;
+}
+
+bool Modbus_tcp_io::send_cmd_resp(const Modbus_tcp_frame& cmd, Modbus_tcp_frame* const out_resp)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+
+	if( ! out_resp )
+	{
+		return false;
+	}
+
+	std::vector<uint8_t> buf;
+	if( ! cmd.serialize(&buf) )
+	{
+		return false;
+	}
+
+	if( ! write_modbus_frame(buf) )
+	{
+		return false;
+	}
+
+	if( ! read_modbus_frame(out_resp) )
+	{
+		SPDLOG_ERROR("send_cmd_resp read failed");
+		return false;
+	}
+
+	if( ! out_resp->is_frame_response_for(cmd) )
+	{
+		SPDLOG_ERROR("send_cmd_resp response mismatch");
+		return false;
 	}
 
 	return true;
