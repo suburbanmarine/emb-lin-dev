@@ -44,6 +44,11 @@ public:
 
 	int32_t i2c_smbus_write_word_data_swapped(const uint8_t addr, const uint8_t cmd, const uint16_t reg);
 
+	std::string get_path() const
+	{
+		return m_bus_path;
+	}
+
 protected:
 
 	std::recursive_mutex m_mutex;
