@@ -69,6 +69,11 @@ public:
 	// returns true if valid
 	virtual bool force_probe(const M24XXX_DRE_ID& id);
 
+	[[deprecated]] virtual bool probe()
+	{
+		return false;
+	}
+
 	// hint addr size when probing
 	// probing an unlocked device with the wrong addr_size is not safe.
 	virtual bool probe(const size_t addr_size)

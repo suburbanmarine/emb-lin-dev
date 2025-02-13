@@ -26,6 +26,11 @@ public:
 	[[deprecated]] bool write_id_page(const Pagebuffer& data);
 	[[deprecated]] bool read_id_page(Pagebuffer* const out_buf);
 
+	[[deprecated]] bool probe() override
+	{
+		return M24XXX_DRE::probe(2);
+	}
+
 	bool lock_id_page() override;
 	bool get_id_lock_status(bool* const is_locked) override;
 
