@@ -844,7 +844,7 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::vector<uint8_t>& ca_c
 	std::vector<std::string> cn_vec = temp_cert->subject_info("X520.CommonName");
 	if(cn_vec.size() != 1)
 	{
-		SPDLOG_ERROR("temp_cert CN does not match");
+		SPDLOG_ERROR("temp_cert CN size wrong");
 		return false;		
 	}
 	if(cn_vec[0] != fmt::format("sn{:02X}",fmt::join(get_cached_sn(), "")))
@@ -857,7 +857,7 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::vector<uint8_t>& ca_c
 	Botan::ECDSA_PublicKey* temp_cert_pubkey = dynamic_cast<Botan::ECDSA_PublicKey*>(temp_cert->subject_public_key());
 	if( ! temp_cert_pubkey )
 	{
-		SPDLOG_ERROR("temp_cert pubkey public_point does not match");
+		SPDLOG_ERROR("temp_cert pubkey not a ECDSA_PublicKey");
 		return false;		
 	}
 	if(temp_cert_pubkey->domain() != master_pubkey->domain())
