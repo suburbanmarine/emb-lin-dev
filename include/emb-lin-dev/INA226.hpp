@@ -36,7 +36,7 @@ public:
 
 		if(out_uv)
 		{
-			*out_uv = reg * 25 / 10;
+			*out_uv = ((int16_t)reg) * 25 / 10;
 		}
 
 		return true;
@@ -51,7 +51,7 @@ public:
 
 		if(out_ma)
 		{
-			*out_ma = reg * 25 * 100 / shunt_uohm;
+			*out_ma = ((int16_t)reg) * 25 * 100 / shunt_uohm;
 		}
 
 		return true;

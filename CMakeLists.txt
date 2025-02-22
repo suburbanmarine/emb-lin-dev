@@ -30,6 +30,8 @@ add_library(emb-lin-dev
 	src/LTC4151.cpp
 	src/M24C02_DRE.cpp
 	src/M24C64_DRE.cpp
+	src/M24XXX_DRE.cpp
+	src/MB85RC.cpp
 	src/MCP23017.cpp
 	src/MCP23X17.cpp
 	src/PCA9544A.cpp
