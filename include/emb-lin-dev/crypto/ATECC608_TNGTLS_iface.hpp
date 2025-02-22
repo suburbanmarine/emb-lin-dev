@@ -165,6 +165,7 @@ public:
 	bool generate_user2_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* out_cert);
 
 	bool load_master_ca_cert(const std::string& path);
+	bool load_master_ca_cert(const std::vector<uint8_t>& ca_cert_der);
 
 	std::shared_ptr<Botan::X509_Certificate> get_master_ca_cert()
 	{

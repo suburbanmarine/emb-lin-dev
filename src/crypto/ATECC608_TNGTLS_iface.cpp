@@ -815,12 +815,6 @@ bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_CA& master_ca, Botan
 
 bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::string& path)
 {
-	std::shared_ptr<const Botan::ECDSA_PublicKey> master_pubkey = get_master_pubkey();
-	if( ! master_pubkey )
-	{
-		return false;
-	}
-
 	std::vector<uint8_t> ca_cert_der;
 	if( ! File_util::readSmallFile(path, &ca_cert_der) )
 	{
@@ -828,6 +822,17 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::string& path)
 		return false;
 	}
 
+	return load_master_ca_cert(ca_cert_der);
+}
+
+bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::vector<uint8_t>& ca_cert_der)
+{
+	std::shared_ptr<const Botan::ECDSA_PublicKey> master_pubkey = get_master_pubkey();
+	if( ! master_pubkey )
+	{
+		return false;
+	}
+	
 	std::shared_ptr<Botan::X509_Certificate> temp_cert = std::make_shared<Botan::X509_Certificate>(ca_cert_der);
 	if(! temp_cert )
 	{
