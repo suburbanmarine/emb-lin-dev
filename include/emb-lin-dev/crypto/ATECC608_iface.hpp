@@ -209,7 +209,14 @@ public:
 		}
 	}
 
+	std::recursive_mutex& get_mutex()
+	{
+		return m_mutex;
+	}
+
 protected:
+
+	std::recursive_mutex m_mutex;
 
 	ATCAIfaceCfg m_cfg;
 	ATCADevice   m_dev;
