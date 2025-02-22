@@ -153,8 +153,6 @@ bool ATECC608_iface::init(const uint8_t bus, const uint8_t address)
 
 	SPDLOG_INFO("atcab_init_ext: bus {:d} dev 0x{:02X}", unsigned(m_cfg.atcai2c.bus), unsigned(m_cfg.atcai2c.address));
 
-	atcab_wakeup();
-
 	ATCA_STATUS ret;
 	for(int i = 0; i < 3; i++)
 	{
