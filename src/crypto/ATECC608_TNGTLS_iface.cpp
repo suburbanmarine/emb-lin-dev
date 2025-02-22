@@ -597,11 +597,11 @@ bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* out
 	ca_cert_opt.CA_key(1);
 
 	// clamp to device cert time
-	if(ca_cert_opt.start.to_std_timepoint() < m_device_cert.not_before().to_std_timepoint())
+	if(ca_cert_opt.start < m_device_cert.not_before())
 	{
 		ca_cert_opt.start = m_device_cert.not_before();
 	}	
-	if(m_device_cert.not_after().to_std_timepoint() < ca_cert_opt.end.to_std_timepoint())
+	if(m_device_cert.not_after() < ca_cert_opt.end)
 	{
 		ca_cert_opt.end = m_device_cert.not_after();
 	}
