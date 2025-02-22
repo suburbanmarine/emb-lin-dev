@@ -23,6 +23,7 @@
 #include <fmt/ranges.h>
 
 #include <exception>
+#include <thread>
 
 void to_json(nlohmann::json& j, const Signature_with_nonce& val)
 {
@@ -152,8 +153,21 @@ bool ATECC608_iface::init(const uint8_t bus, const uint8_t address)
 
 	SPDLOG_INFO("atcab_init_ext: bus {:d} dev 0x{:02X}", unsigned(m_cfg.atcai2c.bus), unsigned(m_cfg.atcai2c.address));
 
-	ATCA_STATUS ret = atcab_init_ext(&m_dev, &m_cfg);
-	calib_exit(m_dev);
+	atcab_wakeup();
+
+	ATCA_STATUS ret;
+	for(int i = 0; i < 3; i++)
+	{
+		ret = atcab_init_ext(&m_dev, &m_cfg);
+		calib_exit(m_dev);
+
+		if(ret == ATCA_SUCCESS)
+		{
+			break;
+		}
+		SPDLOG_ERROR("error in atcab_init_ext: {:d}", ret);
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
 	if(ret != ATCA_SUCCESS)
 	{
 		SPDLOG_ERROR("error in atcab_init_ext: {:d}", ret);
