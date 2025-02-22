@@ -644,11 +644,11 @@ bool ATECC608_TNGTLS_iface::generate_attestation_cert(Botan::X509_CA& master_ca,
 	user_cert_opt.add_constraints(ca_cert_constraints);
 
 	// clamp to device cert time
-	if(user_cert_opt.start.to_std_timepoint() < m_device_cert.not_before().to_std_timepoint())
+	if(user_cert_opt.start < m_device_cert.not_before())
 	{
 		user_cert_opt.start = m_device_cert.not_before();
 	}	
-	if(m_device_cert.not_after().to_std_timepoint() < user_cert_opt.end.to_std_timepoint())
+	if(m_device_cert.not_after() < user_cert_opt.end)
 	{
 		user_cert_opt.end = m_device_cert.not_after();
 	}
@@ -692,11 +692,11 @@ bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_CA& master_ca, Botan
 	user_cert_opt.add_constraints(ca_cert_constraints);
 
 	// clamp to device cert time
-	if(user_cert_opt.start.to_std_timepoint() < m_device_cert.not_before().to_std_timepoint())
+	if(user_cert_opt.start < m_device_cert.not_before())
 	{
 		user_cert_opt.start = m_device_cert.not_before();
 	}	
-	if(m_device_cert.not_after().to_std_timepoint() < user_cert_opt.end.to_std_timepoint())
+	if(m_device_cert.not_after() < user_cert_opt.end)
 	{
 		user_cert_opt.end = m_device_cert.not_after();
 	}
@@ -740,11 +740,11 @@ bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_CA& master_ca, Botan
 	user_cert_opt.add_constraints(ca_cert_constraints);
 
 	// clamp to device cert time
-	if(user_cert_opt.start.to_std_timepoint() < m_device_cert.not_before().to_std_timepoint())
+	if(user_cert_opt.start < m_device_cert.not_before())
 	{
 		user_cert_opt.start = m_device_cert.not_before();
 	}	
-	if(m_device_cert.not_after().to_std_timepoint() < user_cert_opt.end.to_std_timepoint())
+	if(m_device_cert.not_after() < user_cert_opt.end)
 	{
 		user_cert_opt.end = m_device_cert.not_after();
 	}
@@ -790,11 +790,11 @@ bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_CA& master_ca, Botan
 	user_cert_opt.add_constraints(ca_cert_constraints);
 
 	// clamp to device cert time
-	if(user_cert_opt.start.to_std_timepoint() < m_device_cert.not_before().to_std_timepoint())
+	if(user_cert_opt.start < m_device_cert.not_before())
 	{
 		user_cert_opt.start = m_device_cert.not_before();
 	}	
-	if(m_device_cert.not_after().to_std_timepoint() < user_cert_opt.end.to_std_timepoint())
+	if(m_device_cert.not_after() < user_cert_opt.end)
 	{
 		user_cert_opt.end = m_device_cert.not_after();
 	}
