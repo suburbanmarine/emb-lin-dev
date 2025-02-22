@@ -69,7 +69,7 @@ public:
 	// returns true if valid
 	virtual bool force_probe(const M24XXX_DRE_ID& id);
 
-	[[deprecated]] virtual bool probe()
+	virtual bool probe()
 	{
 		return false;
 	}
