@@ -609,7 +609,7 @@ bool ATECC608_TNGTLS_iface::get_signed_info(Envelope_signature_with_nonce* const
 	return true;
 }
 
-bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* out_cert)
+bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* const out_cert)
 {
 	if( ! out_cert )
 	{
@@ -654,7 +654,7 @@ bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* out
 
 	return true;
 }
-bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* out_cert)
+bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* const out_cert)
 {
 	if( ! out_cert )
 	{
@@ -703,7 +703,7 @@ bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_CA& master_ca, Botan
 
 	return true;
 }
-bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* out_cert)
+bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* const out_cert)
 {
 	if( ! out_cert )
 	{
@@ -752,7 +752,7 @@ bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_CA& master_ca, Botan
 
 	return true;
 }
-bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* out_cert)
+bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* const out_cert)
 {
 	if( ! out_cert )
 	{
@@ -804,6 +804,43 @@ bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_CA& master_ca, Botan
 	return true;
 }
 
+bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_Certificate* const out_cert)
+{
+	if( ! master_ca_cert )
+	{
+		return false;
+	}
+
+	ATECC608_ECDSA_PrivateKey master_priv_key(*this, 0, get_master_pubkey());
+	Botan::X509_CA master_ca(*master_ca_cert, master_priv_key, "SHA-256", m_rng);
+
+	return generate_user0_cert(master_ca, out_cert);
+}
+bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_Certificate* const out_cert)
+{
+	if(! master_ca_cert )
+	{
+		return false;
+	}
+
+	ATECC608_ECDSA_PrivateKey master_priv_key(*this, 0, get_master_pubkey());
+	Botan::X509_CA master_ca(*master_ca_cert, master_priv_key, "SHA-256", m_rng);
+
+	return generate_user1_cert(master_ca, out_cert);
+}
+bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_Certificate* const out_cert)
+{
+	if(! master_ca_cert )
+	{
+		return false;
+	}
+
+	ATECC608_ECDSA_PrivateKey master_priv_key(*this, 0, get_master_pubkey());
+	Botan::X509_CA master_ca(*master_ca_cert, master_priv_key, "SHA-256", m_rng);
+
+	return generate_user2_cert(master_ca, out_cert);
+}
+
 bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::string& path)
 {
 	std::vector<uint8_t> ca_cert_der;
@@ -829,6 +866,12 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::vector<uint8_t>& ca_c
 }
 bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::shared_ptr<Botan::X509_Certificate>& ca_cert)
 {
+	if( ! ca_cert->is_CA_cert() )
+	{
+		SPDLOG_ERROR("not a CA cert");
+		return false;		
+	}
+
 	// check CN
 	std::vector<std::string> cn_vec = ca_cert->subject_info("X520.CommonName");
 	if(cn_vec.size() != 1)
@@ -877,5 +920,81 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::shared_ptr<Botan::X50
 
 	SPDLOG_DEBUG("Loaded master cert:\n{:s}", master_ca_cert->to_string());
 	
+	return true;
+}
+
+bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::vector<uint8_t>& cert_der)
+{
+	std::shared_ptr<const Botan::ECDSA_PublicKey> cached_user_cert_pubkey;
+	switch(slot)
+	{
+		case KEY_SLOT_ID::USER0:
+		{
+			cached_user_cert_pubkey = get_user0_pubkey();
+			break;
+		}
+		case KEY_SLOT_ID::USER1:
+		{
+			cached_user_cert_pubkey = get_user1_pubkey();
+			break;
+		}
+		case KEY_SLOT_ID::USER2:
+		{
+			cached_user_cert_pubkey = get_user2_pubkey();
+			break;
+		}
+		default:
+		{
+			cached_user_cert_pubkey.reset();
+			break;
+		}
+	}
+
+	if( ! cached_user_cert_pubkey )
+	{
+		return false;
+	}
+
+	std::shared_ptr<Botan::X509_Certificate> user_cert = std::make_shared<Botan::X509_Certificate>(cert_der);
+	if(! user_cert )
+	{
+		return false;
+	}
+
+	// check pubkey
+	std::shared_ptr<const Botan::ECDSA_PublicKey> master_pubkey = get_master_pubkey();
+	if( ! master_pubkey )
+	{
+		return false;
+	}
+
+	Botan::ECDSA_PublicKey* user_cert_pubkey = dynamic_cast<Botan::ECDSA_PublicKey*>(user_cert->subject_public_key());
+	if( ! user_cert_pubkey )
+	{
+		SPDLOG_ERROR("user_cert pubkey not a ECDSA_PublicKey");
+		return false;		
+	}
+	if(user_cert_pubkey->domain() != cached_user_cert_pubkey->domain())
+	{
+		SPDLOG_ERROR("user_cert pubkey domain does not match");
+		return false;
+	}
+	if(user_cert_pubkey->public_point() != cached_user_cert_pubkey->public_point())
+	{
+		SPDLOG_ERROR("user_cert pubkey public_point does not match");
+		return false;
+	}
+	
+	// check sig valid
+	if( ! user_cert->check_signature(*master_pubkey) )
+	{
+		SPDLOG_ERROR("user_cert->check_signature failed");
+		return false;
+	}
+
+	// todo check expiration
+
+	user_cert_cache.insert_or_assign(slot, user_cert);
+
 	return true;
 }
