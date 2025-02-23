@@ -159,7 +159,6 @@ public:
 	bool get_signed_info(Envelope_signature_with_nonce* const out_sig);
 
 	bool generate_master_ca_cert(Botan::X509_Certificate* out_cert);
-	bool generate_attestation_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* out_cert);
 	bool generate_user0_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* out_cert);
 	bool generate_user1_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* out_cert);
 	bool generate_user2_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* out_cert);

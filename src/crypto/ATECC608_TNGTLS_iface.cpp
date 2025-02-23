@@ -205,6 +205,7 @@ bool ATECC608_TNGTLS_iface::init(const uint8_t bus, const uint8_t address)
 	{
 		SPDLOG_DEBUG("ATECC608_TNGTLS_iface::init m_device_cert signature ok by m_signer_cert");
 	}
+
 	try
 	{
 		std::shared_ptr<const Botan::ECDSA_PublicKey> master_pubkey = get_master_pubkey();
@@ -244,19 +245,15 @@ bool ATECC608_TNGTLS_iface::init(const uint8_t bus, const uint8_t address)
 	SPDLOG_DEBUG("ATECC608_TNGTLS_iface::init key m_signer_cert:\n{:s}", m_signer_cert.to_string());
 	SPDLOG_DEBUG("ATECC608_TNGTLS_iface::init key m_device_cert:\n{:s}", m_device_cert.to_string());
 
-	// have master key sign attestation's pubkey
-	// {
-	// 	sign_ext_with_nonce
-	// }
-
 	// record attestation signatures
 	{
-		std::list<uint16_t> key_ids = {
+		std::array<uint16_t, 4> key_ids = {
 			uint16_t(KEY_SLOT_ID::MASTER),
 			uint16_t(KEY_SLOT_ID::USER0),
 			uint16_t(KEY_SLOT_ID::USER1),
 			uint16_t(KEY_SLOT_ID::USER2)
 		};
+
 		for(const uint16_t& slot_id : key_ids)
 		{
 			KeyFingerprintSig sig_data;
@@ -268,6 +265,7 @@ bool ATECC608_TNGTLS_iface::init(const uint8_t bus, const uint8_t address)
 			m_key_attestation.insert_or_assign(slot_id, sig_data);
 		}
 	}
+
 	return true;
 }
 
@@ -531,6 +529,8 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 
 	{
 		std::vector<uint8_t> tmpvec;
+		tmpvec.reserve(1024);
+		
 		{
 			Botan::DER_Encoder der(tmpvec);
 			m_device_cert.encode_into(der);
@@ -592,7 +592,7 @@ bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* out
 		"",
 		30*365*24*60*60
 	);
-	ca_cert_opt.common_name  = fmt::format("sn{:02X}",fmt::join(get_cached_sn(), ""));
+	ca_cert_opt.common_name  = fmt::format("sn{:02X}-ca",fmt::join(get_cached_sn(), ""));
 	ca_cert_opt.organization = "Suburban Marine Inc";
 	ca_cert_opt.CA_key(1);
 
@@ -618,54 +618,6 @@ bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* out
 
 	return true;
 }
-bool ATECC608_TNGTLS_iface::generate_attestation_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* out_cert)
-{
-	if( ! out_cert )
-	{
-		return false;
-	}
-
-	std::shared_ptr<const Botan::EC_PublicKey> user_pub_key = get_attestation_pubkey();
-	if( ! user_pub_key )
-	{
-		return false;
-	}
-	ATECC608_ECDSA_PrivateKey user_priv_key(*this, uint16_t(KEY_SLOT_ID::ATTESTATION), user_pub_key);
-
-	Botan::X509_Cert_Options user_cert_opt(
-		"",
-		30*365*24*60*60
-	);
-	user_cert_opt.common_name  = fmt::format("sn{:02X}",fmt::join(get_cached_sn(), ""));
-	user_cert_opt.organization = "Suburban Marine Inc";
-	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
-		Botan::Key_Constraints::DIGITAL_SIGNATURE
-	);
-	user_cert_opt.add_constraints(ca_cert_constraints);
-
-	// clamp to device cert time
-	if(user_cert_opt.start < m_device_cert.not_before())
-	{
-		user_cert_opt.start = m_device_cert.not_before();
-	}	
-	if(m_device_cert.not_after() < user_cert_opt.end)
-	{
-		user_cert_opt.end = m_device_cert.not_after();
-	}
-
-	Botan::PKCS10_Request user_req = Botan::X509::create_cert_req(user_cert_opt, user_priv_key, "SHA-256", get_sys_rng());
-	*out_cert = master_ca.sign_request(user_req, get_sys_rng(), user_cert_opt.start, user_cert_opt.end);
-
-	if( ! out_cert->check_signature(master_ca.ca_certificate().subject_public_key()) )
-	{
-		SPDLOG_ERROR("out_cert->check_signature failed");
-		return false;
-	}
-
-	SPDLOG_DEBUG("Generated ATTESTATION cert:\n{:s}", out_cert->to_string());
-
-	return true;
-}
 bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* out_cert)
 {
 	if( ! out_cert )
@@ -684,7 +636,8 @@ bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_CA& master_ca, Botan
 		"",
 		1*365*24*60*60
 	);
-	user_cert_opt.common_name  = fmt::format("sn{:02X}",fmt::join(get_cached_sn(), ""));
+	user_cert_opt.common_name  = fmt::format("sn{:02X}-user0",             fmt::join(get_cached_sn(), ""));
+	user_cert_opt.dns          = fmt::format("sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""));
 	user_cert_opt.organization = "Suburban Marine Inc";
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
@@ -732,7 +685,8 @@ bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_CA& master_ca, Botan
 		"",
 		1*365*24*60*60
 	);
-	user_cert_opt.common_name  = fmt::format("sn{:02X}",fmt::join(get_cached_sn(), ""));
+	user_cert_opt.common_name  = fmt::format("sn{:02X}-user1",             fmt::join(get_cached_sn(), ""));
+	user_cert_opt.dns          = fmt::format("sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""));
 	user_cert_opt.organization = "Suburban Marine Inc";
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
@@ -780,7 +734,8 @@ bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_CA& master_ca, Botan
 		"",
 		1*365*24*60*60
 	);
-	user_cert_opt.common_name  = fmt::format("sn{:02X}",fmt::join(get_cached_sn(), ""));
+	user_cert_opt.common_name  = fmt::format("sn{:02X}-user2",             fmt::join(get_cached_sn(), ""));
+	user_cert_opt.dns          = fmt::format("sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""));
 	user_cert_opt.organization = "Suburban Marine Inc";
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
