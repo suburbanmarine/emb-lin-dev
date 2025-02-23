@@ -466,64 +466,99 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 	std::shared_ptr<const Botan::EC_PublicKey> key = get_master_pubkey();
 	if(key)
 	{
-		info.pubkeys["MASTER"] = Botan::base64_encode(
-			Botan::X509::BER_encode(*key)
+		info.pubkeys.insert(
+			std::make_pair(
+				"MASTER",
+				Botan::base64_encode(Botan::X509::BER_encode(*key))
+			)
 		);
 
 		auto it = m_key_attestation.find(int(KEY_SLOT_ID::MASTER));
 		if(it != m_key_attestation.end())
 		{
-			info.key_attestation["MASTER"] = it->second;
+			info.key_attestation.insert(
+				std::make_pair(
+					"MASTER",
+					it->second
+				)
+			);
 		}
 	}
 
 	key = get_attestation_pubkey();
 	if(key)
 	{
-		info.pubkeys["ATTESTATION"] = Botan::base64_encode(
-			Botan::X509::BER_encode(*key)
+		info.pubkeys.insert(
+			std::make_pair(
+				"ATTESTATION",
+				Botan::base64_encode(Botan::X509::BER_encode(*key))
+			)
 		);
 	}
 
 	key = get_user0_pubkey();
 	if(key)
 	{
-		info.pubkeys["USER0"] = Botan::base64_encode(
-			Botan::X509::BER_encode(*key)
+		info.pubkeys.insert(
+			std::make_pair(
+				"USER0",
+				Botan::base64_encode(Botan::X509::BER_encode(*key))
+			)
 		);
 
 		auto it = m_key_attestation.find(int(KEY_SLOT_ID::USER0));
 		if(it != m_key_attestation.end())
 		{
-			info.key_attestation["USER0"] = it->second;
+			info.key_attestation.insert(
+				std::make_pair(
+					"USER0",
+					it->second
+				)
+			);
 		}
 	}
 
 	key = get_user1_pubkey();
 	if(key)
 	{
-		info.pubkeys["USER1"] = Botan::base64_encode(
-			Botan::X509::BER_encode(*key)
+		info.pubkeys.insert(
+			std::make_pair(
+				"USER1",
+				Botan::base64_encode(Botan::X509::BER_encode(*key))
+			)
 		);
 
 		auto it = m_key_attestation.find(int(KEY_SLOT_ID::USER1));
 		if(it != m_key_attestation.end())
 		{
-			info.key_attestation["USER1"] = it->second;
+			info.key_attestation.insert(
+				std::make_pair(
+					"USER1",
+					it->second
+				)
+			);
 		}
 	}
 	
 	key = get_user2_pubkey();
 	if(key)
 	{
-		info.pubkeys["USER2"] = Botan::base64_encode(
-			Botan::X509::BER_encode(*key)
+		info.pubkeys.insert(
+			std::make_pair(
+				"USER2",
+				Botan::base64_encode(Botan::X509::BER_encode(*key))
+			)
 		);
 
 		auto it = m_key_attestation.find(int(KEY_SLOT_ID::USER2));
 		if(it != m_key_attestation.end())
 		{
-			info.key_attestation["USER2"] = it->second;
+			info.key_attestation.insert(
+				std::make_pair(
+					"USER2",
+					it->second
+				)
+			);
 		}
 	}
 
@@ -532,20 +567,21 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 		tmpvec.reserve(1024);
 		
 		{
+			tmpvec.clear();
 			Botan::DER_Encoder der(tmpvec);
 			m_device_cert.encode_into(der);
 			info.device_cert = Botan::base64_encode(tmpvec);
 		}
 
-		tmpvec.clear();
 		{
+			tmpvec.clear();
 			Botan::DER_Encoder der(tmpvec);
 			m_signer_cert.encode_into(der);
 			info.signer_cert = Botan::base64_encode(tmpvec);
 		}
 
-		tmpvec.clear();
 		{
+			tmpvec.clear();
 			Botan::DER_Encoder der(tmpvec);
 			m_root_cert.encode_into(der);
 			info.root_cert = Botan::base64_encode(tmpvec);
@@ -782,60 +818,64 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::string& path)
 
 bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::vector<uint8_t>& ca_cert_der)
 {
+	std::shared_ptr<Botan::X509_Certificate> ca_cert = std::make_shared<Botan::X509_Certificate>(ca_cert_der);
+	if(! ca_cert )
+	{
+		SPDLOG_ERROR("Could not create ca_cert");
+		return false;		
+	}
+
+	return load_master_ca_cert(ca_cert);
+}
+bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::shared_ptr<Botan::X509_Certificate>& ca_cert)
+{
+	// check CN
+	std::vector<std::string> cn_vec = ca_cert->subject_info("X520.CommonName");
+	if(cn_vec.size() != 1)
+	{
+		SPDLOG_ERROR("ca_cert CN size wrong");
+		return false;		
+	}
+	if(cn_vec[0] != fmt::format("sn{:02X}-ca",fmt::join(get_cached_sn(), "")))
+	{
+		SPDLOG_ERROR("ca_cert CN does not match");
+		return false;		
+	}
+
+	// check pubkey
 	std::shared_ptr<const Botan::ECDSA_PublicKey> master_pubkey = get_master_pubkey();
 	if( ! master_pubkey )
 	{
 		return false;
 	}
-	
-	std::shared_ptr<Botan::X509_Certificate> temp_cert = std::make_shared<Botan::X509_Certificate>(ca_cert_der);
-	if(! temp_cert )
-	{
-		SPDLOG_ERROR("Could not create temp_cert");
-		return false;		
-	}
 
-	// check CN
-	std::vector<std::string> cn_vec = temp_cert->subject_info("X520.CommonName");
-	if(cn_vec.size() != 1)
+	Botan::ECDSA_PublicKey* ca_cert_pubkey = dynamic_cast<Botan::ECDSA_PublicKey*>(ca_cert->subject_public_key());
+	if( ! ca_cert_pubkey )
 	{
-		SPDLOG_ERROR("temp_cert CN size wrong");
+		SPDLOG_ERROR("ca_cert pubkey not a ECDSA_PublicKey");
 		return false;		
 	}
-	if(cn_vec[0] != fmt::format("sn{:02X}",fmt::join(get_cached_sn(), "")))
+	if(ca_cert_pubkey->domain() != master_pubkey->domain())
 	{
-		SPDLOG_ERROR("temp_cert CN does not match");
-		return false;		
-	}
-
-	// check pubkey
-	Botan::ECDSA_PublicKey* temp_cert_pubkey = dynamic_cast<Botan::ECDSA_PublicKey*>(temp_cert->subject_public_key());
-	if( ! temp_cert_pubkey )
-	{
-		SPDLOG_ERROR("temp_cert pubkey not a ECDSA_PublicKey");
-		return false;		
-	}
-	if(temp_cert_pubkey->domain() != master_pubkey->domain())
-	{
-		SPDLOG_ERROR("temp_cert pubkey domain does not match");
+		SPDLOG_ERROR("ca_cert pubkey domain does not match");
 		return false;
 	}
-	if(temp_cert_pubkey->public_point() != master_pubkey->public_point())
+	if(ca_cert_pubkey->public_point() != master_pubkey->public_point())
 	{
-		SPDLOG_ERROR("temp_cert pubkey public_point does not match");
+		SPDLOG_ERROR("ca_cert pubkey public_point does not match");
 		return false;
 	}
 	
 	// check sig valid
-	if( ! temp_cert->check_signature(*master_pubkey) )
+	if( ! ca_cert->check_signature(*master_pubkey) )
 	{
-		SPDLOG_ERROR("temp_cert->check_signature failed");
+		SPDLOG_ERROR("ca_cert->check_signature failed");
 		return false;
 	}
 
-	master_ca_cert = std::move(temp_cert);
+	master_ca_cert = ca_cert;
 
 	SPDLOG_DEBUG("Loaded master cert:\n{:s}", master_ca_cert->to_string());
-
+	
 	return true;
 }

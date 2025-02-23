@@ -155,7 +155,9 @@ public:
 	std::vector<uint8_t> get_cert_chain_der() const;
 	std::string          get_cert_chain_pem() const;
 
+	// get x509 format pubkeys, x509 cert for master to mcp root
 	ATECC608_info get_info() const;
+	// like get_info(), with hash signed by master
 	bool get_signed_info(Envelope_signature_with_nonce* const out_sig);
 
 	bool generate_master_ca_cert(Botan::X509_Certificate* out_cert);
@@ -163,8 +165,11 @@ public:
 	bool generate_user1_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* out_cert);
 	bool generate_user2_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* out_cert);
 
+	// usually you want to call generate_master_ca_cert once and reuse the cert
+	// load it to reuse here
 	bool load_master_ca_cert(const std::string& path);
 	bool load_master_ca_cert(const std::vector<uint8_t>& ca_cert_der);
+	bool load_master_ca_cert(const std::shared_ptr<Botan::X509_Certificate>& ca_cert);
 
 	std::shared_ptr<Botan::X509_Certificate> get_master_ca_cert()
 	{
