@@ -448,7 +448,7 @@ std::vector<uint8_t> ATECC608_TNGTLS_iface::get_cert_chain_der() const
 std::string ATECC608_TNGTLS_iface::get_cert_chain_pem() const
 {
 	std::string chain;
-	chain.reserve(2048);
+	chain.reserve(4096);
 
 	chain.append(m_device_cert.PEM_encode());
 	chain.append(m_signer_cert.PEM_encode());
