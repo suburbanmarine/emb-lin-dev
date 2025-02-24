@@ -434,7 +434,7 @@ bool ATECC608_TNGTLS_iface::read_root_certificate(Botan::X509_Certificate* const
 std::vector<uint8_t> ATECC608_TNGTLS_iface::get_cert_chain_der() const
 {
 	std::vector<uint8_t> tmpvec;
-	tmpvec.reserve(1024);
+	tmpvec.reserve(2048);
 
 	Botan::DER_Encoder der(tmpvec);
 
@@ -448,7 +448,7 @@ std::vector<uint8_t> ATECC608_TNGTLS_iface::get_cert_chain_der() const
 std::string ATECC608_TNGTLS_iface::get_cert_chain_pem() const
 {
 	std::string chain;
-	chain.reserve(1024);
+	chain.reserve(2048);
 
 	chain.append(m_device_cert.PEM_encode());
 	chain.append(m_signer_cert.PEM_encode());
