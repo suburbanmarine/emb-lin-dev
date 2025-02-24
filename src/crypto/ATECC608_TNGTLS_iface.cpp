@@ -605,9 +605,19 @@ bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* con
 	// TODO: long term, we want to set this to more like 30 years
 	// Debian on armhf haas 32b time_t
 	// Switch to openembedded or debian 13
+	uint32_t expire_time = 0;
+	if(sizeof(time_t) < 8)
+	{
+		expire_time = 12*365*24*60*60;
+	}
+	else
+	{
+		expire_time = 30*365*24*60*60;
+	}
+
 	Botan::X509_Cert_Options ca_cert_opt(
 		"",
-		12*365*24*60*60
+		expire_time
 	);
 	ca_cert_opt.common_name  = fmt::format("sn{:02X}",fmt::join(get_cached_sn(), ""));
 	ca_cert_opt.dns          = fmt::format("sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""));
