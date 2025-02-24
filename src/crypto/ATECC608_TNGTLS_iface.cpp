@@ -602,20 +602,23 @@ bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* con
 
 	ATECC608_ECDSA_PrivateKey master_priv_key(*this, 0, master_pub_key);
 
+	// TODO: long term, we want to set this to more like 30 years
+	// Debian on armhf haas 32b time_t
+	// Switch to openembedded or debian 13
 	Botan::X509_Cert_Options ca_cert_opt(
 		"",
-		30*365*24*60*60
+		12*365*24*60*60
 	);
 	ca_cert_opt.common_name  = fmt::format("sn{:02X}",fmt::join(get_cached_sn(), ""));
 	ca_cert_opt.dns          = fmt::format("sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""));
 	ca_cert_opt.more_dns     = {fmt::format("ca.sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""))};
 	ca_cert_opt.CA_key(0);
 
-	// clamp to device cert time
+	// clamp start to device cert time
 	if(ca_cert_opt.start < m_device_cert.not_before())
 	{
 		ca_cert_opt.start = m_device_cert.not_before();
-	}	
+	}
 	if(m_device_cert.not_after() < ca_cert_opt.end)
 	{
 		ca_cert_opt.end = m_device_cert.not_after();
