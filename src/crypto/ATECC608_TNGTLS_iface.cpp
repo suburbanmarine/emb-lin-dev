@@ -850,6 +850,12 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::string& path)
 
 bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::vector<uint8_t>& ca_cert_der)
 {
+	if(ca_cert_der.empty())
+	{
+		SPDLOG_ERROR("Error loading provided ca cert");
+		return false;
+	}
+
 	std::shared_ptr<Botan::X509_Certificate> ca_cert;
 	try
 	{
