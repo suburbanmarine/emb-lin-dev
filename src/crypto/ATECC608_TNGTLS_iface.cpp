@@ -850,10 +850,20 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::string& path)
 
 bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::vector<uint8_t>& ca_cert_der)
 {
-	std::shared_ptr<Botan::X509_Certificate> ca_cert = std::make_shared<Botan::X509_Certificate>(ca_cert_der);
+	std::shared_ptr<Botan::X509_Certificate> ca_cert;
+	try
+	{
+		ca_cert = std::make_shared<Botan::X509_Certificate>(ca_cert_der);
+	}
+	catch(const std::exception& e)
+	{
+		SPDLOG_ERROR("Error loading key: {:s}", e.what());
+		return false;
+	}
+
 	if(! ca_cert )
 	{
-		SPDLOG_ERROR("Could not create ca_cert");
+		SPDLOG_ERROR("Could not load ca_cert");
 		return false;		
 	}
 
@@ -920,6 +930,12 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::shared_ptr<Botan::X50
 
 bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::vector<uint8_t>& cert_der)
 {
+	if(cert_der.empty())
+	{
+		SPDLOG_ERROR("Error loading provided user cert");
+		return false;
+	}
+
 	std::shared_ptr<const Botan::ECDSA_PublicKey> cached_user_cert_pubkey;
 	switch(slot)
 	{
@@ -947,12 +963,24 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 
 	if( ! cached_user_cert_pubkey )
 	{
+		SPDLOG_ERROR("Error loading cached pubkey");
 		return false;
 	}
 
-	std::shared_ptr<Botan::X509_Certificate> user_cert = std::make_shared<Botan::X509_Certificate>(cert_der);
+	std::shared_ptr<Botan::X509_Certificate> user_cert;
+	try
+	{
+		user_cert = std::make_shared<Botan::X509_Certificate>(cert_der);
+	}
+	catch(const std::exception& e)
+	{
+		SPDLOG_ERROR("Error loading key: {:s}", e.what());
+		return false;
+	}
+	
 	if(! user_cert )
 	{
+		SPDLOG_ERROR("Error loading provided user cert");
 		return false;
 	}
 
@@ -960,6 +988,7 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 	std::shared_ptr<const Botan::ECDSA_PublicKey> master_pubkey = get_master_pubkey();
 	if( ! master_pubkey )
 	{
+		SPDLOG_ERROR("Error loading cached master pubkey");
 		return false;
 	}
 
