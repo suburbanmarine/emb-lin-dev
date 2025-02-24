@@ -883,7 +883,7 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::shared_ptr<Botan::X50
 		SPDLOG_ERROR("ca_cert CN size wrong");
 		return false;		
 	}
-	if(cn_vec[0] != fmt::format("sn{:02X}-ca",fmt::join(get_cached_sn(), "")))
+	if(cn_vec[0] != fmt::format("sn{:02X}", fmt::join(get_cached_sn(), "")))
 	{
 		SPDLOG_ERROR("ca_cert CN does not match");
 		return false;		
