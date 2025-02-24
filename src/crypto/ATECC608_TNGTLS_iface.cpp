@@ -491,7 +491,7 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 		info.pubkeys.insert(
 			std::make_pair(
 				"ATTESTATION",
-				Botan::base64_encode(Botan::X509::BER_encode(*key))
+				ATECC_Botan_util::pubkey_to_x509ber_b64(*key)
 			)
 		);
 	}
@@ -502,7 +502,7 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 		info.pubkeys.insert(
 			std::make_pair(
 				"USER0",
-				Botan::base64_encode(Botan::X509::BER_encode(*key))
+				ATECC_Botan_util::pubkey_to_x509ber_b64(*key)
 			)
 		);
 
@@ -524,7 +524,7 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 		info.pubkeys.insert(
 			std::make_pair(
 				"USER1",
-				Botan::base64_encode(Botan::X509::BER_encode(*key))
+				ATECC_Botan_util::pubkey_to_x509ber_b64(*key)
 			)
 		);
 
@@ -546,7 +546,7 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 		info.pubkeys.insert(
 			std::make_pair(
 				"USER2",
-				Botan::base64_encode(Botan::X509::BER_encode(*key))
+				ATECC_Botan_util::pubkey_to_x509ber_b64(*key)
 			)
 		);
 
@@ -562,31 +562,9 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 		}
 	}
 
-	{
-		std::vector<uint8_t> tmpvec;
-		tmpvec.reserve(1024);
-		
-		{
-			tmpvec.clear();
-			Botan::DER_Encoder der(tmpvec);
-			m_device_cert.encode_into(der);
-			info.device_cert = Botan::base64_encode(tmpvec);
-		}
-
-		{
-			tmpvec.clear();
-			Botan::DER_Encoder der(tmpvec);
-			m_signer_cert.encode_into(der);
-			info.signer_cert = Botan::base64_encode(tmpvec);
-		}
-
-		{
-			tmpvec.clear();
-			Botan::DER_Encoder der(tmpvec);
-			m_root_cert.encode_into(der);
-			info.root_cert = Botan::base64_encode(tmpvec);
-		}
-	}
+	info.device_cert = ATECC_Botan_util::x509_to_der_b64(m_device_cert);
+	info.signer_cert = ATECC_Botan_util::x509_to_der_b64(m_signer_cert);
+	info.root_cert   = ATECC_Botan_util::x509_to_der_b64(m_root_cert);
 
 	return info;
 }

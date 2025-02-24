@@ -12,6 +12,8 @@
 #include <emb-lin-dev/crypto/ATECC608_botan.hpp>
 
 #include <botan/der_enc.h>
+#include <botan/base64.h>
+#include <botan/x509_key.h>
 
 Botan::secure_vector<uint8_t> ATECC608_ECDSA_SHA256_Signer::sign(Botan::RandomNumberGenerator& rng)
 {
@@ -54,4 +56,20 @@ Botan::secure_vector<uint8_t> ATECC608_ECDSA_SHA256_Signer::der_encode_signature
 	der_enc.end_cons();
 
 	return der_sig;
+}
+
+std::string ATECC_Botan_util::x509_to_der_b64(const Botan::X509_Certificate& cert)
+{
+	std::vector<uint8_t> cert_der;
+	cert_der.reserve(1024);
+
+	Botan::DER_Encoder der_enc(cert_der);
+	cert.encode_into(der_enc);
+
+	return Botan::base64_encode(cert_der);
+}
+
+std::string ATECC_Botan_util::pubkey_to_x509ber_b64(const Botan::Public_Key& key)
+{
+	return Botan::base64_encode(Botan::X509::BER_encode(key));
 }

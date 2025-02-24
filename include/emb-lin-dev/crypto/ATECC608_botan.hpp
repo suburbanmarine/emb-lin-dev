@@ -17,7 +17,7 @@
 #include <botan/hash.h>
 #include <botan/pk_ops.h>
 #include <botan/pk_keys.h>
-
+#include <botan/x509cert.h>
 
 #include <memory>
 
@@ -110,4 +110,11 @@ protected:
 	ATECC608_iface& m_atecc;
 	uint16_t m_priv_key_id;
 	std::shared_ptr<const Botan::Public_Key> m_pub_key;
+};
+
+class ATECC_Botan_util
+{
+public:
+	static std::string x509_to_der_b64(const Botan::X509_Certificate& cert);
+	static std::string pubkey_to_x509ber_b64(const Botan::Public_Key& key);
 };
