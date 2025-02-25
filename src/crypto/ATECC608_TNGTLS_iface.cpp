@@ -924,9 +924,10 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::shared_ptr<Botan::X50
 	}
 	
 	// check sig valid
-	if( ! ca_cert->check_signature(*master_pubkey) )
+	Botan::Certificate_Status_Code sig_status = ca_cert->verify_signature(*master_pubkey);
+	if( sig_status != Botan::Certificate_Status_Code::OK )
 	{
-		SPDLOG_ERROR("ca_cert->check_signature failed");
+		SPDLOG_ERROR("ca_cert->verify_signature failed: {:s}", Botan::to_string(sig_status));
 		return false;
 	}
 
@@ -1019,13 +1020,12 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 	}
 	
 	// check sig valid
-	if( ! user_cert->check_signature(*master_pubkey) )
+	Botan::Certificate_Status_Code sig_status = user_cert->verify_signature(*master_pubkey);
+	if( sig_status != Botan::Certificate_Status_Code::OK )
 	{
-		SPDLOG_ERROR("user_cert->check_signature failed");
+		SPDLOG_ERROR("user_cert->verify_signature failed: {:s}", Botan::to_string(sig_status));
 		return false;
 	}
-
-	// todo check expiration
 
 	user_cert_cache.insert_or_assign(slot, user_cert);
 
