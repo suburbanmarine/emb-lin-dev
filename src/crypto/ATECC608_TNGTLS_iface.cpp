@@ -218,10 +218,9 @@ bool ATECC608_TNGTLS_iface::init(const uint8_t bus, const uint8_t address)
 		}
 		else
 		{
-			SPDLOG_WARN("device cert path validation failed: {:s}, {:s}", path_ret.result_string(), path_ret.warnings_string());
+			SPDLOG_WARN("device cert path validation failed: {:s}", path_ret.result_string());
 		}
 	}
-
 
 	try
 	{
@@ -940,23 +939,25 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::shared_ptr<Botan::X50
 		return false;
 	}
 	
-	// check sig valid
-	Botan::Certificate_Status_Code sig_status = ca_cert->verify_signature(*master_pubkey);
-	if( sig_status != Botan::Certificate_Status_Code::OK )
-	{
-		SPDLOG_ERROR("ca_cert->verify_signature failed: {:s}", Botan::to_string(sig_status));
-		return false;
-	}
-
 	if( ! ca_cert->is_CA_cert() )
 	{
 		SPDLOG_ERROR("ca_cert is not actually a ca_cert");
 		return false;
 	}
 
-	master_ca_cert = ca_cert;
+	Botan::Certificate_Store_In_Memory temp_local_cert_store;
+	temp_local_cert_store.add_certificate(ca_cert);	
 
-	m_local_cert_store = Botan::Certificate_Store_In_Memory();
+	// check sig valid
+	std::vector<Botan::X509_Certificate> chain = {*ca_cert};
+	Botan::Path_Validation_Result path_ret = Botan::x509_path_validate(chain, Botan::Path_Validation_Restrictions(false, 128), temp_local_cert_store);
+	if( ! path_ret.successful_validation() )
+	{
+		SPDLOG_WARN("ca_cert x509_path_validate failed: {:s}", path_ret.result_string());
+		return false;
+	}
+
+	master_ca_cert = ca_cert;
 	m_local_cert_store.add_certificate(ca_cert);
 
 	SPDLOG_DEBUG("Loaded master cert:\n{:s}", master_ca_cert->to_string());
@@ -968,13 +969,13 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 {
 	if(cert_der.empty())
 	{
-		SPDLOG_ERROR("Error loading provided user cert");
+		SPDLOG_WARN("Error loading provided user cert");
 		return false;
 	}
 
 	if( ! master_ca_cert )
 	{
-		SPDLOG_ERROR("master_ca_cert is null");
+		SPDLOG_WARN("master_ca_cert is null");
 		return false;
 	}
 
@@ -1005,7 +1006,7 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 
 	if( ! cached_user_cert_pubkey )
 	{
-		SPDLOG_ERROR("Error loading cached pubkey");
+		SPDLOG_WARN("Error loading cached pubkey");
 		return false;
 	}
 
@@ -1016,48 +1017,40 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 	}
 	catch(const std::exception& e)
 	{
-		SPDLOG_ERROR("Error loading key: {:s}", e.what());
+		SPDLOG_WARN("Error loading key: {:s}", e.what());
 		return false;
 	}
 	
 	if( ! user_cert )
 	{
-		SPDLOG_ERROR("Error loading provided user cert");
+		SPDLOG_WARN("Error loading provided user cert");
 		return false;
 	}
 
 	// check pubkey
-	std::shared_ptr<const Botan::ECDSA_PublicKey> master_pubkey = get_master_pubkey();
-	if( ! master_pubkey )
-	{
-		SPDLOG_ERROR("Error loading cached master pubkey");
-		return false;
-	}
-
 	Botan::ECDSA_PublicKey* user_cert_pubkey = dynamic_cast<Botan::ECDSA_PublicKey*>(user_cert->subject_public_key());
 	if( ! user_cert_pubkey )
 	{
-		SPDLOG_ERROR("user_cert pubkey not a ECDSA_PublicKey");
+		SPDLOG_WARN("user_cert pubkey not a ECDSA_PublicKey");
 		return false;		
 	}
 	if(user_cert_pubkey->domain() != cached_user_cert_pubkey->domain())
 	{
-		SPDLOG_ERROR("user_cert pubkey domain does not match");
+		SPDLOG_WARN("user_cert pubkey domain does not match");
 		return false;
 	}
 	if(user_cert_pubkey->public_point() != cached_user_cert_pubkey->public_point())
 	{
-		SPDLOG_ERROR("user_cert pubkey public_point does not match");
+		SPDLOG_WARN("user_cert pubkey public_point does not match");
 		return false;
 	}
 	
 	// check sig valid
 	std::vector<Botan::X509_Certificate> chain = {*user_cert};
 	Botan::Path_Validation_Result path_ret = Botan::x509_path_validate(chain, Botan::Path_Validation_Restrictions(false, 128), m_local_cert_store);
-	
 	if( ! path_ret.successful_validation() )
 	{
-		SPDLOG_ERROR("user_cert->verify_signature failed: {:s}, {:s}", path_ret.result_string(), path_ret.warnings_string());
+		SPDLOG_WARN("user_cert x509_path_validate failed: {:s}", path_ret.result_string());
 		return false;
 	}
 
