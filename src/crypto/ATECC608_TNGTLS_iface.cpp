@@ -641,6 +641,7 @@ bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* con
 	ca_cert_opt.common_name  = get_cached_sn_str();
 	ca_cert_opt.dns          = get_dns_name_sn();
 	ca_cert_opt.more_dns     = { get_dns_name_sn("ca") };
+	ca_cert_opt.organization = m_organization;
 	ca_cert_opt.CA_key(0);
 
 	// clamp start to device cert time
@@ -686,7 +687,7 @@ bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_CA& master_ca, Botan
 	user_cert_opt.common_name  = get_cached_sn_str();
 	user_cert_opt.dns          = get_dns_name_sn();
 	user_cert_opt.more_dns     = { get_dns_name_sn("user0") };
-	user_cert_opt.organization = "Suburban Marine Inc";
+	user_cert_opt.organization = m_organization;
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
 	);
@@ -736,7 +737,7 @@ bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_CA& master_ca, Botan
 	user_cert_opt.common_name  = get_cached_sn_str();
 	user_cert_opt.dns          = get_dns_name_sn();
 	user_cert_opt.more_dns     = { get_dns_name_sn("user1") };
-	user_cert_opt.organization = "Suburban Marine Inc";
+	user_cert_opt.organization = m_organization;
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
 	);
@@ -786,7 +787,7 @@ bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_CA& master_ca, Botan
 	user_cert_opt.common_name  = get_cached_sn_str();
 	user_cert_opt.dns          = get_dns_name_sn();
 	user_cert_opt.more_dns     = { get_dns_name_sn("user2") };
-	user_cert_opt.organization = "Suburban Marine Inc";
+	user_cert_opt.organization = m_organization;
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
 		// Botan::Key_Constraints::DIGITAL_SIGNATURE | 

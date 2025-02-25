@@ -187,9 +187,15 @@ public:
 		m_second_level_domain = name;
 	}
 
+	void set_organization(const std::string& org)
+	{
+		m_organization = org;
+	}
+
 protected:
 
 	std::string m_second_level_domain;
+	std::string m_organization;
 
 	std::string get_dns_name_sn() const;
 	std::string get_dns_name_sn(const std::string& subdomain) const;
