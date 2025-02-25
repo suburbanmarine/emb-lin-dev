@@ -15,6 +15,7 @@
 
 #include <botan/x509cert.h>
 #include <botan/x509_ca.h>
+#include <botan/certstor.h>
 
 #include <atcacert/atcacert_def.h>
 
@@ -195,6 +196,9 @@ protected:
 	Botan::X509_Certificate m_device_cert;
 	Botan::X509_Certificate m_signer_cert;
 	Botan::X509_Certificate m_root_cert;
+
+	Botan::Certificate_Store_In_Memory m_local_cert_store;
+	Botan::Certificate_Store_In_Memory m_factory_cert_store;
 
 	static const std::map<std::string, atcacert_def_t const *> m_cert_def_lookup;
 };

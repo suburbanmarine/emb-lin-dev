@@ -34,6 +34,7 @@
 #include <botan/x509_ca.h>
 #include <botan/x509_key.h>
 #include <botan/x509self.h>
+#include <botan/x509path.h>
 
 #include <spdlog/spdlog.h>
 #include <fmt/format.h>
@@ -205,6 +206,22 @@ bool ATECC608_TNGTLS_iface::init(const uint8_t bus, const uint8_t address)
 	{
 		SPDLOG_DEBUG("ATECC608_TNGTLS_iface::init m_device_cert signature ok by m_signer_cert");
 	}
+
+	{
+		m_factory_cert_store = Botan::Certificate_Store_In_Memory();
+		m_factory_cert_store.add_certificate(m_root_cert);
+		std::vector<Botan::X509_Certificate> cert_chain = {m_device_cert, m_signer_cert};
+		Botan::Path_Validation_Result path_ret = Botan::x509_path_validate(cert_chain, Botan::Path_Validation_Restrictions(false, 128), m_factory_cert_store);
+		if(path_ret.successful_validation())
+		{
+			SPDLOG_INFO("device cert path validation OK");
+		}
+		else
+		{
+			SPDLOG_WARN("device cert path validation failed: {:s}, {:s}", path_ret.result_string(), path_ret.warnings_string());
+		}
+	}
+
 
 	try
 	{
@@ -931,7 +948,16 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::shared_ptr<Botan::X50
 		return false;
 	}
 
+	if( ! ca_cert->is_CA_cert() )
+	{
+		SPDLOG_ERROR("ca_cert is not actually a ca_cert");
+		return false;
+	}
+
 	master_ca_cert = ca_cert;
+
+	m_local_cert_store = Botan::Certificate_Store_In_Memory();
+	m_local_cert_store.add_certificate(ca_cert);
 
 	SPDLOG_DEBUG("Loaded master cert:\n{:s}", master_ca_cert->to_string());
 	
@@ -943,6 +969,12 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 	if(cert_der.empty())
 	{
 		SPDLOG_ERROR("Error loading provided user cert");
+		return false;
+	}
+
+	if( ! master_ca_cert )
+	{
+		SPDLOG_ERROR("master_ca_cert is null");
 		return false;
 	}
 
@@ -988,7 +1020,7 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 		return false;
 	}
 	
-	if(! user_cert )
+	if( ! user_cert )
 	{
 		SPDLOG_ERROR("Error loading provided user cert");
 		return false;
@@ -1020,10 +1052,12 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 	}
 	
 	// check sig valid
-	Botan::Certificate_Status_Code sig_status = user_cert->verify_signature(*master_pubkey);
-	if( sig_status != Botan::Certificate_Status_Code::OK )
+	std::vector<Botan::X509_Certificate> chain = {user_cert};
+	Botan::Path_Validation_Result path_ret = Botan::x509_path_validate(chain, Botan::Path_Validation_Restrictions(false, 128), m_local_cert_store);
+	
+	if( ! path_ret.successful_validation() )
 	{
-		SPDLOG_ERROR("user_cert->verify_signature failed: {:s}", Botan::to_string(sig_status));
+		SPDLOG_ERROR("user_cert->verify_signature failed: {:s}, {:s}", path_ret.result_string(), path_ret.warnings_string());
 		return false;
 	}
 
