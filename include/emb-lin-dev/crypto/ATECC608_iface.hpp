@@ -151,6 +151,8 @@ public:
 		return m_sn_cache;
 	}
 
+	std::string get_cached_sn_str() const;
+
 	const std::array<uint8_t, 128>& get_cached_config() const
 	{
 		return m_config_cache;

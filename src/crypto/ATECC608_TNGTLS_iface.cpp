@@ -638,9 +638,9 @@ bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* con
 		"",
 		expire_time
 	);
-	ca_cert_opt.common_name  = fmt::format("sn{:02X}",fmt::join(get_cached_sn(), ""));
-	ca_cert_opt.dns          = fmt::format("sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""));
-	ca_cert_opt.more_dns     = {fmt::format("ca.sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""))};
+	ca_cert_opt.common_name  = get_cached_sn_str();
+	ca_cert_opt.dns          = get_dns_name_sn();
+	ca_cert_opt.more_dns     = { get_dns_name_sn("ca") };
 	ca_cert_opt.CA_key(0);
 
 	// clamp start to device cert time
@@ -683,9 +683,9 @@ bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_CA& master_ca, Botan
 		"",
 		1*365*24*60*60
 	);
-	user_cert_opt.common_name  = fmt::format("sn{:02X}",                   fmt::join(get_cached_sn(), ""));
-	user_cert_opt.dns          = fmt::format("sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""));
-	user_cert_opt.more_dns     = {fmt::format("user0.sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""))};
+	user_cert_opt.common_name  = get_cached_sn_str();
+	user_cert_opt.dns          = get_dns_name_sn();
+	user_cert_opt.more_dns     = { get_dns_name_sn("user0") };
 	user_cert_opt.organization = "Suburban Marine Inc";
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
@@ -733,9 +733,9 @@ bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_CA& master_ca, Botan
 		"",
 		1*365*24*60*60
 	);
-	user_cert_opt.common_name  = fmt::format("sn{:02X}",                   fmt::join(get_cached_sn(), ""));
-	user_cert_opt.dns          = fmt::format("sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""));
-	user_cert_opt.more_dns     = {fmt::format("user1.sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""))};
+	user_cert_opt.common_name  = get_cached_sn_str();
+	user_cert_opt.dns          = get_dns_name_sn();
+	user_cert_opt.more_dns     = { get_dns_name_sn("user1") };
 	user_cert_opt.organization = "Suburban Marine Inc";
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
@@ -783,9 +783,9 @@ bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_CA& master_ca, Botan
 		"",
 		1*365*24*60*60
 	);
-	user_cert_opt.common_name  = fmt::format("sn{:02X}",                   fmt::join(get_cached_sn(), ""));
-	user_cert_opt.dns          = fmt::format("sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""));
-	user_cert_opt.more_dns     = {fmt::format("user2.sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""))};
+	user_cert_opt.common_name  = get_cached_sn_str();
+	user_cert_opt.dns          = get_dns_name_sn();
+	user_cert_opt.more_dns     = { get_dns_name_sn("user2") };
 	user_cert_opt.organization = "Suburban Marine Inc";
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
@@ -939,21 +939,30 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::shared_ptr<Botan::X50
 		return false;
 	}
 	
+	// check sig valid
+	Botan::Certificate_Status_Code sig_status = ca_cert->verify_signature(*master_pubkey);
+	if( sig_status != Botan::Certificate_Status_Code::OK )
+	{
+		SPDLOG_ERROR("ca_cert->verify_signature failed: {:s}", Botan::to_string(sig_status));
+		return false;
+	}
+
 	if( ! ca_cert->is_CA_cert() )
 	{
 		SPDLOG_ERROR("ca_cert is not actually a ca_cert");
 		return false;
 	}
 
-	Botan::Certificate_Store_In_Memory temp_local_cert_store;
-	temp_local_cert_store.add_certificate(ca_cert);	
-
-	// check sig valid
-	std::vector<Botan::X509_Certificate> chain = {*ca_cert};
-	Botan::Path_Validation_Result path_ret = Botan::x509_path_validate(chain, Botan::Path_Validation_Restrictions(false, 128), temp_local_cert_store);
-	if( ! path_ret.successful_validation() )
+	// check timestamp
+	const auto t_0 = std::chrono::system_clock::now();
+	if(t_0 < ca_cert->not_before().to_std_timepoint())
 	{
-		SPDLOG_WARN("ca_cert x509_path_validate failed: {:s}", path_ret.result_string());
+		SPDLOG_ERROR("ca_cert timestamp invalid");
+		return false;
+	}
+	if(ca_cert->not_after().to_std_timepoint() < t_0)
+	{
+		SPDLOG_ERROR("ca_cert timestamp invalid");
 		return false;
 	}
 
@@ -1047,7 +1056,12 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 	
 	// check sig valid
 	std::vector<Botan::X509_Certificate> chain = {*user_cert};
-	Botan::Path_Validation_Result path_ret = Botan::x509_path_validate(chain, Botan::Path_Validation_Restrictions(false, 128), m_local_cert_store);
+	Botan::Path_Validation_Result path_ret = Botan::x509_path_validate(
+		chain,
+		Botan::Path_Validation_Restrictions(false, 128),
+		m_local_cert_store,
+		get_dns_name_sn()
+	);
 	if( ! path_ret.successful_validation() )
 	{
 		SPDLOG_WARN("user_cert x509_path_validate failed: {:s}", path_ret.result_string());
@@ -1057,4 +1071,23 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 	user_cert_cache.insert_or_assign(slot, user_cert);
 
 	return true;
+}
+
+std::string ATECC608_TNGTLS_iface::get_dns_name_sn() const
+{
+	if(m_second_level_domain.empty())
+	{
+		return get_cached_sn_str();
+	}
+
+	return fmt::format("{:s}.{:s}", get_cached_sn_str(), m_second_level_domain);
+}
+std::string ATECC608_TNGTLS_iface::get_dns_name_sn(const std::string& subdomain) const
+{
+	if(m_second_level_domain.empty())
+	{
+		return fmt::format("{:s}.{:s}", subdomain, get_cached_sn_str());
+	}
+
+	return fmt::format("{:s}.{:s}.{:s}", subdomain, get_cached_sn_str(), m_second_level_domain);
 }

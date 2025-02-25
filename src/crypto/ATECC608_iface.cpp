@@ -948,3 +948,8 @@ bool ATECC608_iface::verify_key_fingerprint_signature(const std::array<uint8_t, 
 
 	return verify_raw(digest, sig_data.sig, signing_pubkey);
 }
+
+std::string ATECC608_iface::get_cached_sn_str() const
+{
+	return fmt::format("sn{:02X}", fmt::join(get_cached_sn(), ""));
+}

@@ -182,7 +182,17 @@ public:
 
 	bool load_user_cert(const KEY_SLOT_ID& slot, const std::vector<uint8_t>& cert_der);
 
+	void set_second_level_domain(const std::string& name)
+	{
+		m_second_level_domain = name;
+	}
+
 protected:
+
+	std::string m_second_level_domain;
+
+	std::string get_dns_name_sn() const;
+	std::string get_dns_name_sn(const std::string& subdomain) const;
 
 	std::shared_ptr<Botan::X509_Certificate> master_ca_cert;
 	std::map<KEY_SLOT_ID, std::shared_ptr<Botan::X509_Certificate>> user_cert_cache;
