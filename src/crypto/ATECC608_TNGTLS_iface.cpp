@@ -826,7 +826,7 @@ bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_Certificate* const o
 		return false;
 	}
 
-	ATECC608_ECDSA_PrivateKey master_priv_key(*this, 0, get_master_pubkey());
+	ATECC608_ECDSA_PrivateKey master_priv_key(*this, uint16_t(KEY_SLOT_ID::MASTER), get_master_pubkey());
 	Botan::X509_CA master_ca(*master_ca_cert, master_priv_key, "SHA-256", m_rng);
 
 	return generate_user0_cert(master_ca, out_cert);
@@ -838,7 +838,7 @@ bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_Certificate* const o
 		return false;
 	}
 
-	ATECC608_ECDSA_PrivateKey master_priv_key(*this, 0, get_master_pubkey());
+	ATECC608_ECDSA_PrivateKey master_priv_key(*this, uint16_t(KEY_SLOT_ID::MASTER), get_master_pubkey());
 	Botan::X509_CA master_ca(*master_ca_cert, master_priv_key, "SHA-256", m_rng);
 
 	return generate_user1_cert(master_ca, out_cert);
@@ -850,7 +850,7 @@ bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_Certificate* const o
 		return false;
 	}
 
-	ATECC608_ECDSA_PrivateKey master_priv_key(*this, 0, get_master_pubkey());
+	ATECC608_ECDSA_PrivateKey master_priv_key(*this, uint16_t(KEY_SLOT_ID::MASTER), get_master_pubkey());
 	Botan::X509_CA master_ca(*master_ca_cert, master_priv_key, "SHA-256", m_rng);
 
 	return generate_user2_cert(master_ca, out_cert);
