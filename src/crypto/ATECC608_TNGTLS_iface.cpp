@@ -1052,7 +1052,7 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 	}
 	
 	// check sig valid
-	std::vector<Botan::X509_Certificate> chain = {user_cert};
+	std::vector<Botan::X509_Certificate> chain = {*user_cert};
 	Botan::Path_Validation_Result path_ret = Botan::x509_path_validate(chain, Botan::Path_Validation_Restrictions(false, 128), m_local_cert_store);
 	
 	if( ! path_ret.successful_validation() )
