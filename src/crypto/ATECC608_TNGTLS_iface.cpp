@@ -666,19 +666,46 @@ bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* con
 
 	return true;
 }
-bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* const out_cert)
+
+bool ATECC608_TNGTLS_iface::generate_user_cert(const KEY_SLOT_ID& slot, Botan::X509_CA& master_ca, Botan::X509_Certificate* const out_cert)
 {
 	if( ! out_cert )
 	{
 		return false;
 	}
 
-	std::shared_ptr<const Botan::EC_PublicKey> user_pub_key = get_user0_pubkey();
+	char const *  hostname = "";
+	std::shared_ptr<const Botan::EC_PublicKey> user_pub_key;
+	switch(slot)
+	{
+		case KEY_SLOT_ID::USER0:
+		{
+			user_pub_key = get_user0_pubkey();
+			hostname = "user0";
+			break;
+		}
+		case KEY_SLOT_ID::USER1:
+		{
+			user_pub_key = get_user1_pubkey();
+			hostname = "user1";
+			break;
+		}
+		case KEY_SLOT_ID::USER2:
+		{
+			user_pub_key = get_user2_pubkey();
+			hostname = "user2";
+			break;
+		}
+		default:
+		{
+			return false;
+		}
+	}
+
 	if( ! user_pub_key )
 	{
 		return false;
 	}
-	ATECC608_ECDSA_PrivateKey user_priv_key(*this, uint16_t(KEY_SLOT_ID::USER0), user_pub_key);
 
 	Botan::X509_Cert_Options user_cert_opt(
 		"",
@@ -686,7 +713,7 @@ bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_CA& master_ca, Botan
 	);
 	user_cert_opt.common_name  = get_cached_sn_str();
 	user_cert_opt.dns          = get_dns_name_sn();
-	user_cert_opt.more_dns     = { get_dns_name_sn("user0") };
+	user_cert_opt.more_dns     = { get_dns_name_sn(hostname) };
 	user_cert_opt.organization = m_organization;
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
@@ -703,135 +730,28 @@ bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_CA& master_ca, Botan
 		user_cert_opt.end = m_device_cert.not_after();
 	}
 
+	ATECC608_ECDSA_PrivateKey user_priv_key(*this, uint16_t(slot), user_pub_key);
 	Botan::PKCS10_Request user_req = Botan::X509::create_cert_req(user_cert_opt, user_priv_key, "SHA-256", get_sys_rng());
 	*out_cert = master_ca.sign_request(user_req, get_sys_rng(), user_cert_opt.start, user_cert_opt.end);
 
-	if( ! out_cert->check_signature(master_ca.ca_certificate().subject_public_key()) )
+	std::vector<Botan::X509_Certificate> chain = {*out_cert};
+	Botan::Path_Validation_Result path_ret = Botan::x509_path_validate(
+		chain,
+		Botan::Path_Validation_Restrictions(false, 128),
+		m_local_cert_store,
+		get_dns_name_sn()
+	);
+	if( ! path_ret.successful_validation() )
 	{
-		SPDLOG_ERROR("out_cert->check_signature failed");
+		SPDLOG_WARN("user_cert for {:s} x509_path_validate failed: {:s}", hostname, path_ret.result_string());
 		return false;
 	}
 
-	SPDLOG_DEBUG("Generated USER0 cert:\n{:s}", out_cert->to_string());
+	SPDLOG_DEBUG("Generated {:s} cert:\n{:s}", hostname, out_cert->to_string());
 
 	return true;
 }
-bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* const out_cert)
-{
-	if( ! out_cert )
-	{
-		return false;
-	}
-
-	std::shared_ptr<const Botan::EC_PublicKey> user_pub_key = get_user1_pubkey();
-	if( ! user_pub_key )
-	{
-		return false;
-	}
-	ATECC608_ECDSA_PrivateKey user_priv_key(*this, uint16_t(KEY_SLOT_ID::USER1), user_pub_key);
-
-	Botan::X509_Cert_Options user_cert_opt(
-		"",
-		1*365*24*60*60
-	);
-	user_cert_opt.common_name  = get_cached_sn_str();
-	user_cert_opt.dns          = get_dns_name_sn();
-	user_cert_opt.more_dns     = { get_dns_name_sn("user1") };
-	user_cert_opt.organization = m_organization;
-	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
-		Botan::Key_Constraints::DIGITAL_SIGNATURE
-	);
-	user_cert_opt.add_constraints(ca_cert_constraints);
-
-	// clamp to device cert time
-	if(user_cert_opt.start < m_device_cert.not_before())
-	{
-		user_cert_opt.start = m_device_cert.not_before();
-	}	
-	if(m_device_cert.not_after() < user_cert_opt.end)
-	{
-		user_cert_opt.end = m_device_cert.not_after();
-	}
-
-	Botan::PKCS10_Request user_req = Botan::X509::create_cert_req(user_cert_opt, user_priv_key, "SHA-256", get_sys_rng());
-	*out_cert = master_ca.sign_request(user_req, get_sys_rng(), user_cert_opt.start, user_cert_opt.end);
-
-	if( ! out_cert->check_signature(master_ca.ca_certificate().subject_public_key()) )
-	{
-		SPDLOG_ERROR("out_cert->check_signature failed");
-		return false;
-	}
-
-	SPDLOG_DEBUG("Generated USER1 cert:\n{:s}", out_cert->to_string());
-
-	return true;
-}
-bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_CA& master_ca, Botan::X509_Certificate* const out_cert)
-{
-	if( ! out_cert )
-	{
-		return false;
-	}
-
-	std::shared_ptr<const Botan::EC_PublicKey> user_pub_key = get_user2_pubkey();
-	if( ! user_pub_key )
-	{
-		return false;
-	}
-	ATECC608_ECDSA_PrivateKey user_priv_key(*this, uint16_t(KEY_SLOT_ID::USER2), user_pub_key);
-
-	Botan::X509_Cert_Options user_cert_opt(
-		"",
-		1*365*24*60*60
-	);
-	user_cert_opt.common_name  = get_cached_sn_str();
-	user_cert_opt.dns          = get_dns_name_sn();
-	user_cert_opt.more_dns     = { get_dns_name_sn("user2") };
-	user_cert_opt.organization = m_organization;
-	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
-		Botan::Key_Constraints::DIGITAL_SIGNATURE
-		// Botan::Key_Constraints::DIGITAL_SIGNATURE | 
-		// Botan::Key_Constraints::KEY_AGREEMENT
-	);
-	user_cert_opt.add_constraints(ca_cert_constraints);
-
-	// clamp to device cert time
-	if(user_cert_opt.start < m_device_cert.not_before())
-	{
-		user_cert_opt.start = m_device_cert.not_before();
-	}	
-	if(m_device_cert.not_after() < user_cert_opt.end)
-	{
-		user_cert_opt.end = m_device_cert.not_after();
-	}
-
-	Botan::PKCS10_Request user_req = Botan::X509::create_cert_req(user_cert_opt, user_priv_key, "SHA-256", get_sys_rng());
-	*out_cert = master_ca.sign_request(user_req, get_sys_rng(), user_cert_opt.start, user_cert_opt.end);
-
-	if( ! out_cert->check_signature(master_ca.ca_certificate().subject_public_key()) )
-	{
-		SPDLOG_ERROR("out_cert->check_signature failed");
-		return false;
-	}
-
-	SPDLOG_DEBUG("Generated USER2 cert:\n{:s}", out_cert->to_string());
-
-	return true;
-}
-
-bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_Certificate* const out_cert)
-{
-	if( ! master_ca_cert )
-	{
-		return false;
-	}
-
-	ATECC608_ECDSA_PrivateKey master_priv_key(*this, uint16_t(KEY_SLOT_ID::MASTER), get_master_pubkey());
-	Botan::X509_CA master_ca(*master_ca_cert, master_priv_key, "SHA-256", m_rng);
-
-	return generate_user0_cert(master_ca, out_cert);
-}
-bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_Certificate* const out_cert)
+bool ATECC608_TNGTLS_iface::generate_user_cert(const KEY_SLOT_ID& slot, Botan::X509_Certificate* const out_cert)
 {
 	if(! master_ca_cert )
 	{
@@ -841,31 +761,12 @@ bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_Certificate* const o
 	ATECC608_ECDSA_PrivateKey master_priv_key(*this, uint16_t(KEY_SLOT_ID::MASTER), get_master_pubkey());
 	Botan::X509_CA master_ca(*master_ca_cert, master_priv_key, "SHA-256", m_rng);
 
-	return generate_user1_cert(master_ca, out_cert);
-}
-bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_Certificate* const out_cert)
-{
-	if(! master_ca_cert )
-	{
-		return false;
-	}
-
-	ATECC608_ECDSA_PrivateKey master_priv_key(*this, uint16_t(KEY_SLOT_ID::MASTER), get_master_pubkey());
-	Botan::X509_CA master_ca(*master_ca_cert, master_priv_key, "SHA-256", m_rng);
-
-	return generate_user2_cert(master_ca, out_cert);
+	return generate_user_cert(slot, master_ca, out_cert);
 }
 
-bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::string& path)
+bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::string& ca_cert_der_b64)
 {
-	std::vector<uint8_t> ca_cert_der;
-	if( ! File_util::readSmallFile(path, &ca_cert_der) )
-	{
-		SPDLOG_ERROR("Unable to read to {:s}", path);
-		return false;
-	}
-
-	return load_master_ca_cert(ca_cert_der);
+	return load_master_ca_cert(Botan::unlock(Botan::base64_decode(ca_cert_der_b64)));
 }
 
 bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::vector<uint8_t>& ca_cert_der)
@@ -973,6 +874,11 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::shared_ptr<Botan::X50
 	SPDLOG_DEBUG("Loaded master cert:\n{:s}", master_ca_cert->to_string());
 	
 	return true;
+}
+
+bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::string& cert_der_b64)
+{
+	return load_user_cert(slot, Botan::unlock(Botan::base64_decode(cert_der_b64)));
 }
 
 bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::vector<uint8_t>& cert_der)
