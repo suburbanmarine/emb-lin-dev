@@ -623,8 +623,8 @@ bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* con
 		expire_time
 	);
 	ca_cert_opt.common_name  = fmt::format("sn{:02X}",fmt::join(get_cached_sn(), ""));
-	ca_cert_opt.dns          = fmt::format("sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""));
-	ca_cert_opt.more_dns     = {fmt::format("ca.sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""))};
+	ca_cert_opt.dns          = fmt::format("sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""));
+	ca_cert_opt.more_dns     = {fmt::format("ca.sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""))};
 	ca_cert_opt.CA_key(0);
 
 	// clamp start to device cert time
@@ -668,8 +668,8 @@ bool ATECC608_TNGTLS_iface::generate_user0_cert(Botan::X509_CA& master_ca, Botan
 		1*365*24*60*60
 	);
 	user_cert_opt.common_name  = fmt::format("sn{:02X}",                   fmt::join(get_cached_sn(), ""));
-	user_cert_opt.dns          = fmt::format("sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""));
-	user_cert_opt.more_dns     = {fmt::format("user0.sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""))};
+	user_cert_opt.dns          = fmt::format("sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""));
+	user_cert_opt.more_dns     = {fmt::format("user0.sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""))};
 	user_cert_opt.organization = "Suburban Marine Inc";
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
@@ -718,8 +718,8 @@ bool ATECC608_TNGTLS_iface::generate_user1_cert(Botan::X509_CA& master_ca, Botan
 		1*365*24*60*60
 	);
 	user_cert_opt.common_name  = fmt::format("sn{:02X}",                   fmt::join(get_cached_sn(), ""));
-	user_cert_opt.dns          = fmt::format("sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""));
-	user_cert_opt.more_dns     = {fmt::format("user1.sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""))};
+	user_cert_opt.dns          = fmt::format("sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""));
+	user_cert_opt.more_dns     = {fmt::format("user1.sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""))};
 	user_cert_opt.organization = "Suburban Marine Inc";
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
@@ -768,8 +768,8 @@ bool ATECC608_TNGTLS_iface::generate_user2_cert(Botan::X509_CA& master_ca, Botan
 		1*365*24*60*60
 	);
 	user_cert_opt.common_name  = fmt::format("sn{:02X}",                   fmt::join(get_cached_sn(), ""));
-	user_cert_opt.dns          = fmt::format("sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""));
-	user_cert_opt.more_dns     = {fmt::format("user2.sn{:02X}.sububranmarine.io", fmt::join(get_cached_sn(), ""))};
+	user_cert_opt.dns          = fmt::format("sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""));
+	user_cert_opt.more_dns     = {fmt::format("user2.sn{:02X}.suburbanmarine.io", fmt::join(get_cached_sn(), ""))};
 	user_cert_opt.organization = "Suburban Marine Inc";
 	Botan::Key_Constraints ca_cert_constraints = Botan::Key_Constraints(
 		Botan::Key_Constraints::DIGITAL_SIGNATURE
