@@ -127,24 +127,12 @@ bool ATECC608_TNGTLS_iface::init(const uint8_t bus, const uint8_t address)
 				return false;
 			}
 
-			Botan::EC_Group secp256r1_group("secp256r1");
-			std::shared_ptr<Botan::ECDSA_PublicKey> tmpkey = std::make_shared<Botan::ECDSA_PublicKey>(
-				secp256r1_group,
-				secp256r1_group.point(
-					Botan::BigInt(tmpbuf.data()+ 0, 32),
-					Botan::BigInt(tmpbuf.data()+32, 32)
-				)
-			);
+			std::shared_ptr<Botan::ECDSA_PublicKey> tmpkey = parse_atecc_pubkey(tmpbuf);
 
 			if( ! tmpkey )
 			{
 				SPDLOG_ERROR("ATECC608_TNGTLS_iface::init could not parse pubkey {:d}", slot_id);
 				return false;
-			}
-
-			if( ! tmpkey->check_key(m_rng, true) )
-			{
-				SPDLOG_ERROR("ATECC608_TNGTLS_iface::init gave us bad pubkey {:d}", slot_id);
 			}
 
 			m_pubkeys.insert_or_assign(slot_id, tmpkey);

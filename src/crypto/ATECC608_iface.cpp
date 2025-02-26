@@ -953,3 +953,27 @@ std::string ATECC608_iface::get_cached_sn_str() const
 {
 	return fmt::format("sn{:02X}", fmt::join(get_cached_sn(), ""));
 }
+
+std::shared_ptr<Botan::ECDSA_PublicKey> ATECC608_iface::parse_atecc_pubkey(const std::array<uint8_t, 64>& pubkey_buf)
+{
+	Botan::EC_Group secp256r1_group("secp256r1");
+	std::shared_ptr<Botan::ECDSA_PublicKey> tmpkey = std::make_shared<Botan::ECDSA_PublicKey>(
+		secp256r1_group,
+		secp256r1_group.point(
+			Botan::BigInt(pubkey_buf.data()+ 0, 32),
+			Botan::BigInt(pubkey_buf.data()+32, 32)
+		)
+	);
+
+	if( ! tmpkey )
+	{
+		return std::shared_ptr<Botan::ECDSA_PublicKey>();
+	}
+
+	if( ! tmpkey->check_key(m_rng, true) )
+	{
+		return std::shared_ptr<Botan::ECDSA_PublicKey>();
+	}
+
+	return tmpkey;
+}

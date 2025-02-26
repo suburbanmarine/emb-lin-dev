@@ -218,6 +218,8 @@ public:
 
 protected:
 
+	std::shared_ptr<Botan::ECDSA_PublicKey> parse_atecc_pubkey(const std::array<uint8_t, 64>& pubkey_buf);
+
 	std::recursive_mutex m_mutex;
 
 	ATCAIfaceCfg m_cfg;
