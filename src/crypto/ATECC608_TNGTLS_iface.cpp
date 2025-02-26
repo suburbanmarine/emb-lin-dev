@@ -101,6 +101,10 @@ const std::map<std::string, atcacert_def_t const *> ATECC608_TNGTLS_iface::m_cer
 	{"09qJNxI3", &g_tnglora_cert_def_4_device}
 };
 
+//
+// TODO handle partial init failure where eg USER1 is corrupt, and cannot be read or attested
+// Maybe this could happen if there is power loss during a call to rotate_user_key or just due to age
+//
 bool ATECC608_TNGTLS_iface::init(const uint8_t bus, const uint8_t address)
 {
 	if( ! ATECC608_iface::init(bus, address) )
@@ -749,6 +753,56 @@ bool ATECC608_TNGTLS_iface::generate_user_cert(const KEY_SLOT_ID& slot, Botan::X
 	Botan::X509_CA master_ca(*master_ca_cert, master_priv_key, "SHA-256", m_rng);
 
 	return generate_user_cert(slot, master_ca, out_cert);
+}
+
+bool ATECC608_TNGTLS_iface::rotate_user_key(const KEY_SLOT_ID& slot, Botan::X509_Certificate* const out_cert)
+{
+	switch(slot)
+	{
+		case KEY_SLOT_ID::USER0:
+		case KEY_SLOT_ID::USER1:
+		case KEY_SLOT_ID::USER2:
+		{
+			break;
+		}
+		default:
+		{
+			return false;
+		}
+	}
+
+	std::array<uint8_t, 64> pubkey_buf;
+	ATCA_STATUS ret = calib_genkey(m_dev, uint16_t(slot), pubkey_buf.data());
+	if(ret != ATCA_SUCCESS)
+	{
+		SPDLOG_ERROR("Failed to create new key");
+		return false;
+	}
+
+	KeyFingerprintSig sig_data;
+	if( ! sign_key_fingerprint(uint16_t(slot), uint16_t(KEY_SLOT_ID::ATTESTATION), &sig_data) )
+	{
+		SPDLOG_ERROR("Failed to attest new key");
+		return false;
+	}
+
+	std::shared_ptr<Botan::ECDSA_PublicKey> tmpkey = parse_atecc_pubkey(pubkey_buf);
+	if( ! tmpkey )
+	{
+		SPDLOG_ERROR("Failed to parse new key's pubkey");
+		return false;
+	}
+
+	m_pubkeys.insert_or_assign(int(slot), tmpkey);
+	m_key_attestation.insert_or_assign(int(slot), sig_data);
+	
+	if( ! generate_user_cert(slot, out_cert) )
+	{
+		SPDLOG_ERROR("Failed to create new certificate for rotated key");
+		return false;
+	}
+
+	return true;
 }
 
 bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::string& ca_cert_der_b64)
