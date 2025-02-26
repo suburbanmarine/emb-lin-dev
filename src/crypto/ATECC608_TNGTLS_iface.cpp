@@ -34,7 +34,6 @@
 #include <botan/x509_ca.h>
 #include <botan/x509_key.h>
 #include <botan/x509self.h>
-#include <botan/x509path.h>
 
 #include <spdlog/spdlog.h>
 #include <fmt/format.h>
@@ -864,23 +863,23 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::shared_ptr<Botan::X50
 	return true;
 }
 
-bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::string& cert_der_b64)
+std::optional<Botan::Certificate_Status_Code> ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::string& cert_der_b64)
 {
 	return load_user_cert(slot, Botan::unlock(Botan::base64_decode(cert_der_b64)));
 }
 
-bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::vector<uint8_t>& cert_der)
+std::optional<Botan::Certificate_Status_Code> ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::vector<uint8_t>& cert_der)
 {
 	if(cert_der.empty())
 	{
 		SPDLOG_WARN("Error loading provided user cert");
-		return false;
+		return std::optional<Botan::Certificate_Status_Code>();
 	}
 
 	if( ! master_ca_cert )
 	{
 		SPDLOG_WARN("master_ca_cert is null");
-		return false;
+		return std::optional<Botan::Certificate_Status_Code>{};
 	}
 
 	std::shared_ptr<const Botan::ECDSA_PublicKey> cached_user_cert_pubkey;
@@ -911,7 +910,7 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 	if( ! cached_user_cert_pubkey )
 	{
 		SPDLOG_WARN("Error loading cached pubkey");
-		return false;
+		return std::optional<Botan::Certificate_Status_Code>();
 	}
 
 	std::shared_ptr<Botan::X509_Certificate> user_cert;
@@ -922,13 +921,13 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 	catch(const std::exception& e)
 	{
 		SPDLOG_WARN("Error loading key: {:s}", e.what());
-		return false;
+		return std::optional<Botan::Certificate_Status_Code>();
 	}
 	
 	if( ! user_cert )
 	{
 		SPDLOG_WARN("Error loading provided user cert");
-		return false;
+		return std::optional<Botan::Certificate_Status_Code>();
 	}
 
 	// check pubkey
@@ -936,17 +935,17 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 	if( ! user_cert_pubkey )
 	{
 		SPDLOG_WARN("user_cert pubkey not a ECDSA_PublicKey");
-		return false;		
+		return std::optional<Botan::Certificate_Status_Code>();		
 	}
 	if(user_cert_pubkey->domain() != cached_user_cert_pubkey->domain())
 	{
 		SPDLOG_WARN("user_cert pubkey domain does not match");
-		return false;
+		return std::optional<Botan::Certificate_Status_Code>();
 	}
 	if(user_cert_pubkey->public_point() != cached_user_cert_pubkey->public_point())
 	{
 		SPDLOG_WARN("user_cert pubkey public_point does not match");
-		return false;
+		return std::optional<Botan::Certificate_Status_Code>();
 	}
 	
 	// check sig valid
@@ -957,15 +956,17 @@ bool ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::v
 		m_local_cert_store,
 		get_dns_name_sn()
 	);
-	if( ! path_ret.successful_validation() )
+
+	if( path_ret.successful_validation() )
+	{
+		user_cert_cache.insert_or_assign(slot, user_cert);
+	}
+	else
 	{
 		SPDLOG_WARN("user_cert x509_path_validate failed: {:s}", path_ret.result_string());
-		return false;
 	}
 
-	user_cert_cache.insert_or_assign(slot, user_cert);
-
-	return true;
+	return std::make_optional(path_ret.result());
 }
 
 std::string ATECC608_TNGTLS_iface::get_dns_name_sn() const
