@@ -443,6 +443,57 @@ std::string ATECC608_TNGTLS_iface::get_cert_chain_pem() const
 	return chain;
 }
 
+ATECC608_mfg_info ATECC608_TNGTLS_iface::get_mfg_info() const
+{
+	ATECC608_mfg_info mfg_info;
+	mfg_info.serial_number = Botan::base64_encode(m_sn_cache.data(), m_sn_cache.size());
+
+
+	mfg_info.user_certs.insert_or_assign("USER0",  "");
+	mfg_info.user_certs.insert_or_assign("USER1",  "");
+	mfg_info.user_certs.insert_or_assign("USER2",  "");
+
+	auto it = user_cert_cache.find(KEY_SLOT_ID::MASTER);
+	if(it != user_cert_cache.end())
+	{
+		if(it->second)
+		{
+			mfg_info.user_certs.insert_or_assign("MASTER", ATECC_Botan_util::x509_to_der_b64(*it->second));
+		}
+	}
+	it = user_cert_cache.find(KEY_SLOT_ID::USER0);
+	if(it != user_cert_cache.end())
+	{
+		if(it->second)
+		{
+			mfg_info.user_certs.insert_or_assign("USER0", ATECC_Botan_util::x509_to_der_b64(*it->second));
+		}
+	}
+	it = user_cert_cache.find(KEY_SLOT_ID::USER1);
+	if(it != user_cert_cache.end())
+	{
+		if(it->second)
+		{
+			mfg_info.user_certs.insert_or_assign("USER1", ATECC_Botan_util::x509_to_der_b64(*it->second));
+		}
+	}
+	it = user_cert_cache.find(KEY_SLOT_ID::USER2);
+	if(it != user_cert_cache.end())
+	{
+		if(it->second)
+		{
+			mfg_info.user_certs.insert_or_assign("USER2", ATECC_Botan_util::x509_to_der_b64(*it->second));
+		}
+	}
+
+	mfg_info.device_ca_cert = ATECC_Botan_util::x509_to_der_b64(get_master_ca_cert());
+	mfg_info.device_cert    = ATECC_Botan_util::x509_to_der_b64(get_device_certificate());
+	mfg_info.signer_cert    = ATECC_Botan_util::x509_to_der_b64(get_signer_certificate());
+	mfg_info.root_cert      = ATECC_Botan_util::x509_to_der_b64(get_root_certificate());	
+
+	return mfg_info;
+}
+
 ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 {
 	ATECC608_info info;
@@ -458,7 +509,7 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 		info.pubkeys.insert(
 			std::make_pair(
 				"MASTER",
-				Botan::base64_encode(Botan::X509::BER_encode(*key))
+				ATECC_Botan_util::pubkey_to_x509ber_b64(*key)
 			)
 		);
 	}

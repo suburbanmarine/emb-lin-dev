@@ -115,6 +115,7 @@ protected:
 class ATECC_Botan_util
 {
 public:
+	static std::string x509_to_der_b64(const std::shared_ptr<const Botan::X509_Certificate>& cert);
 	static std::string x509_to_der_b64(const Botan::X509_Certificate& cert);
 	static std::string pubkey_to_x509ber_b64(const Botan::Public_Key& key);
 };

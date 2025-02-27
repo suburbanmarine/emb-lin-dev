@@ -58,6 +58,16 @@ Botan::secure_vector<uint8_t> ATECC608_ECDSA_SHA256_Signer::der_encode_signature
 	return der_sig;
 }
 
+std::string ATECC_Botan_util::x509_to_der_b64(const std::shared_ptr<const Botan::X509_Certificate>& cert)
+{
+	if( ! cert)
+	{
+		return std::string();
+	}
+
+	return x509_to_der_b64(*cert);
+}
+
 std::string ATECC_Botan_util::x509_to_der_b64(const Botan::X509_Certificate& cert)
 {
 	std::vector<uint8_t> cert_der;

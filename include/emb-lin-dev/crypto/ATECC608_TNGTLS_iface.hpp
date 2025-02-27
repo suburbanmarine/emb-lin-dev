@@ -39,6 +39,20 @@ public:
 void to_json(nlohmann::json& j, const ATECC608_info& val);
 void from_json(const nlohmann::json& j, ATECC608_info& val);
 
+class ATECC608_mfg_info : public JSON_CBOR_helper<ATECC608_mfg_info>
+{
+public:
+	std::string serial_number; // b64
+	std::string device_ca_cert;
+	std::map<std::string, std::string> user_certs; // name, X509 cert BER b64
+	std::string device_cert; // X509 pubkey cert DER b64, for master key in slot0
+	std::string signer_cert; // X509 pubkey cert DER b64, signs device_cert
+	std::string root_cert;   // X509 pubkey cert DER b64, signs signer_cert
+};
+// void to_json(nlohmann::json& j, const ATECC608_mfg_info& val);
+// void from_json(const nlohmann::json& j, ATECC608_mfg_info& val);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ATECC608_mfg_info, serial_number, device_ca_cert, user_certs, device_cert, signer_cert, root_cert);
+
 class ATECC608_TNGTLS_iface : public ATECC608_iface
 {
 public:
@@ -157,6 +171,8 @@ public:
 	std::vector<uint8_t> get_cert_chain_der() const;
 	std::string          get_cert_chain_pem() const;
 
+	ATECC608_mfg_info get_mfg_info() const;
+
 	// get x509 format pubkeys, x509 cert for master to mcp root
 	ATECC608_info get_info() const;
 	// like get_info(), with hash signed by master
@@ -175,7 +191,7 @@ public:
 	bool load_master_ca_cert(const std::vector<uint8_t>& ca_cert_der);
 	bool load_master_ca_cert(const std::shared_ptr<Botan::X509_Certificate>& ca_cert);
 
-	std::shared_ptr<Botan::X509_Certificate> get_master_ca_cert()
+	std::shared_ptr<const Botan::X509_Certificate> get_master_ca_cert() const
 	{
 		return master_ca_cert;
 	}
