@@ -28,8 +28,8 @@ public:
 	std::array<uint8_t, 4>   revision;      // b64
 	std::array<uint8_t, 9>   serial_number; // b64
 	std::array<uint8_t, 128> config;        // config area bytes [0, 127] b64
-	std::array<uint8_t, 32> otp0;          // otp area bytes [0, 31] b64 (the id of signer_cert)
-	std::array<uint8_t, 32> otp1;          // otp area bytes [32, 63] b64 (all zeros)
+	std::array<uint8_t, 32>  otp0;          // otp area bytes [0, 31] b64 (the id of signer_cert)
+	std::array<uint8_t, 32>  otp1;          // otp area bytes [32, 63] b64 (all zeros)
 	std::map<std::string, std::string> pubkeys; // name, pubkey X509 BER b64 (not full cert, just the pubkey)
 	std::map<std::string, KeyFingerprintSig> key_attestation; // name, pubkey attestation cbor as b64
 	std::string device_cert; // X509 pubkey cert DER b64, for master key in slot0
@@ -193,6 +193,8 @@ public:
 		m_organization = org;
 	}
 
+	std::optional< std::map<std::string, KeyFingerprintSig > > attest_internal_keys();
+
 protected:
 
 	std::string m_second_level_domain;
@@ -208,7 +210,6 @@ protected:
 	void const * get_device_cert_def(); // returns a atcacert_def_t
 
 	std::map<int, std::shared_ptr<Botan::EC_PublicKey> > m_pubkeys; // TOOD are all of these ECDSA, or should one be used for ECDH and not signature
-	std::map<int, KeyFingerprintSig > m_key_attestation;
 
 	Botan::X509_Certificate m_device_cert;
 	Botan::X509_Certificate m_signer_cert;

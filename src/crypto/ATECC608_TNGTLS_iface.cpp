@@ -114,7 +114,7 @@ bool ATECC608_TNGTLS_iface::init(const uint8_t bus, const uint8_t address)
 
 	// read pub keys
 	{
-		std::list<int> key_ids = {
+		std::array<int, 5> key_ids = {
 			int(KEY_SLOT_ID::MASTER),
 			int(KEY_SLOT_ID::ATTESTATION),
 			int(KEY_SLOT_ID::USER0),
@@ -251,27 +251,6 @@ bool ATECC608_TNGTLS_iface::init(const uint8_t bus, const uint8_t address)
 	SPDLOG_DEBUG("ATECC608_TNGTLS_iface::init key m_root_cert:\n{:s}",   m_root_cert.to_string());
 	SPDLOG_DEBUG("ATECC608_TNGTLS_iface::init key m_signer_cert:\n{:s}", m_signer_cert.to_string());
 	SPDLOG_DEBUG("ATECC608_TNGTLS_iface::init key m_device_cert:\n{:s}", m_device_cert.to_string());
-
-	// record attestation signatures
-	{
-		std::array<uint16_t, 4> key_ids = {
-			uint16_t(KEY_SLOT_ID::MASTER),
-			uint16_t(KEY_SLOT_ID::USER0),
-			uint16_t(KEY_SLOT_ID::USER1),
-			uint16_t(KEY_SLOT_ID::USER2)
-		};
-
-		for(const uint16_t& slot_id : key_ids)
-		{
-			KeyFingerprintSig sig_data;
-			if( ! sign_key_fingerprint(slot_id, uint16_t(KEY_SLOT_ID::ATTESTATION), &sig_data) )
-			{
-				return false;
-			}
-
-			m_key_attestation.insert_or_assign(slot_id, sig_data);
-		}
-	}
 
 	return true;
 }
@@ -482,17 +461,6 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 				Botan::base64_encode(Botan::X509::BER_encode(*key))
 			)
 		);
-
-		auto it = m_key_attestation.find(int(KEY_SLOT_ID::MASTER));
-		if(it != m_key_attestation.end())
-		{
-			info.key_attestation.insert(
-				std::make_pair(
-					"MASTER",
-					it->second
-				)
-			);
-		}
 	}
 
 	key = get_attestation_pubkey();
@@ -515,17 +483,6 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 				ATECC_Botan_util::pubkey_to_x509ber_b64(*key)
 			)
 		);
-
-		auto it = m_key_attestation.find(int(KEY_SLOT_ID::USER0));
-		if(it != m_key_attestation.end())
-		{
-			info.key_attestation.insert(
-				std::make_pair(
-					"USER0",
-					it->second
-				)
-			);
-		}
 	}
 
 	key = get_user1_pubkey();
@@ -537,17 +494,6 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 				ATECC_Botan_util::pubkey_to_x509ber_b64(*key)
 			)
 		);
-
-		auto it = m_key_attestation.find(int(KEY_SLOT_ID::USER1));
-		if(it != m_key_attestation.end())
-		{
-			info.key_attestation.insert(
-				std::make_pair(
-					"USER1",
-					it->second
-				)
-			);
-		}
 	}
 	
 	key = get_user2_pubkey();
@@ -559,17 +505,6 @@ ATECC608_info ATECC608_TNGTLS_iface::get_info() const
 				ATECC_Botan_util::pubkey_to_x509ber_b64(*key)
 			)
 		);
-
-		auto it = m_key_attestation.find(int(KEY_SLOT_ID::USER2));
-		if(it != m_key_attestation.end())
-		{
-			info.key_attestation.insert(
-				std::make_pair(
-					"USER2",
-					it->second
-				)
-			);
-		}
 	}
 
 	info.device_cert = ATECC_Botan_util::x509_to_der_b64(m_device_cert);
@@ -586,8 +521,19 @@ bool ATECC608_TNGTLS_iface::get_signed_info(Envelope_signature_with_nonce* const
 		return false;
 	}
 
+	// Get basic info
 	ATECC608_info info = get_info();
-	out_sig->msg       = info.to_cbor();
+
+	// Also get key attest sigs
+	auto attest = attest_internal_keys();
+	if( ! attest.has_value() )
+	{
+		return false;
+	}
+	info.key_attestation = std::move(attest.value());
+
+	// serialize
+	out_sig->msg = info.to_cbor();
 
 	if( ! sign_ext_with_nonce(out_sig->msg, uint16_t(KEY_SLOT_ID::MASTER), &out_sig->sig) )
 	{
@@ -794,7 +740,6 @@ bool ATECC608_TNGTLS_iface::rotate_user_key(const KEY_SLOT_ID& slot, Botan::X509
 	}
 
 	m_pubkeys.insert_or_assign(int(slot), tmpkey);
-	m_key_attestation.insert_or_assign(int(slot), sig_data);
 	
 	if( ! generate_user_cert(slot, out_cert) )
 	{
@@ -1040,4 +985,30 @@ std::string ATECC608_TNGTLS_iface::get_dns_name_sn(const std::string& subdomain)
 	}
 
 	return fmt::format("{:s}.{:s}.{:s}", subdomain, get_cached_sn_str(), m_second_level_domain);
+}
+
+std::optional< std::map<std::string, KeyFingerprintSig > > ATECC608_TNGTLS_iface::attest_internal_keys()
+{
+	// record attestation signatures
+	std::array<std::pair<uint16_t, char const * const>, 4> key_ids = {
+		std::make_pair(uint16_t(KEY_SLOT_ID::MASTER), "MASTER"),
+		std::make_pair(uint16_t(KEY_SLOT_ID::USER0), "USER0"),
+		std::make_pair(uint16_t(KEY_SLOT_ID::USER1), "USER1"),
+		std::make_pair(uint16_t(KEY_SLOT_ID::USER2), "USER2")
+	};
+
+	std::map<std::string, KeyFingerprintSig > ret;
+
+	for(const auto& slot_id : key_ids)
+	{
+		KeyFingerprintSig sig_data;
+		if( ! sign_key_fingerprint(slot_id.first, uint16_t(KEY_SLOT_ID::ATTESTATION), &sig_data) )
+		{
+			return std::optional< std::map<std::string, KeyFingerprintSig > >();
+		}
+
+		ret.insert_or_assign(slot_id.second, sig_data);
+	}
+
+	return std::make_optional(std::move(ret));
 }
