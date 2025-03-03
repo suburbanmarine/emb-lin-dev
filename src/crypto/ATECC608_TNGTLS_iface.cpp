@@ -302,8 +302,8 @@ bool ATECC608_TNGTLS_iface::read_device_certificate(Botan::X509_Certificate* con
 	// this should be the cert for the slot0 key
 	// see tng_atcacert_read_device_cert
 
-	atcacert_def_t const * const cert_def = static_cast<atcacert_def_t const *>(get_device_cert_def());
-	if( ! cert_def )
+	atcacert_def_t const * const dev_cert_def = get_device_cert_def();
+	if( ! dev_cert_def )
 	{
 		return false;
 	}
@@ -311,33 +311,31 @@ bool ATECC608_TNGTLS_iface::read_device_certificate(Botan::X509_Certificate* con
 	// Read signer key
 	std::array<uint8_t, 72> ca_public_key;
 	{
-		ATCA_STATUS ret = atcacert_read_device_loc_ext(m_dev, &cert_def->ca_cert_def->public_key_dev_loc, ca_public_key.data());
+		ATCA_STATUS ret = atcacert_read_device_loc_ext(m_dev, &dev_cert_def->ca_cert_def->public_key_dev_loc, ca_public_key.data());
 		if(ret != ATCACERT_E_SUCCESS)
 		{
 			return false;
 		}
 
-		if (cert_def->ca_cert_def->public_key_dev_loc.count == 72U)
+		if (dev_cert_def->ca_cert_def->public_key_dev_loc.count == 72U)
 		{
 			atcacert_public_key_remove_padding(ca_public_key.data(), ca_public_key.data());
 		}
 	}
 
 	size_t max_cert_size = 0;
-	ATCA_STATUS ret = atcacert_max_cert_size(cert_def, &max_cert_size);
+	ATCA_STATUS ret = atcacert_max_cert_size(dev_cert_def, &max_cert_size);
 	if(ret != ATCACERT_E_SUCCESS)
 	{
 		return false;
 	}
 
 	std::vector<uint8_t> device_cert_der(max_cert_size);
-
-	ret = atcacert_read_cert_ext(m_dev, cert_def, ca_public_key.data(), device_cert_der.data(), &max_cert_size);
+	ret = atcacert_read_cert_ext(m_dev, dev_cert_def, ca_public_key.data(), device_cert_der.data(), &max_cert_size);
 	if(ret != ATCACERT_E_SUCCESS)
 	{
 		return false;
 	}
-
 	device_cert_der.resize(max_cert_size);
 
 	*out_cert = Botan::X509_Certificate(device_cert_der);
@@ -363,18 +361,16 @@ bool ATECC608_TNGTLS_iface::read_signer_certificate(Botan::X509_Certificate* con
 		return false;
 	}
 
-	atcacert_def_t const * const cert_def = static_cast<atcacert_def_t const *>(get_device_cert_def());
-	if( ! cert_def )
+	atcacert_def_t const * const dev_cert_def = get_device_cert_def();
+	if( ! dev_cert_def )
 	{
 		return false;
 	}
 
-	atcacert_def_t const * const ca_cert_def = cert_def->ca_cert_def;
-	uint8_t const * ca_public_key = &g_cryptoauth_root_ca_002_cert[CRYPTOAUTH_ROOT_CA_002_PUBLIC_KEY_OFFSET];
+	uint8_t const * const ca_public_key = &g_cryptoauth_root_ca_002_cert[CRYPTOAUTH_ROOT_CA_002_PUBLIC_KEY_OFFSET];
 
 	std::vector<uint8_t> sig_cert_der(max_cert_size);
-
-	ret = atcacert_read_cert_ext(m_dev, ca_cert_def, ca_public_key, sig_cert_der.data(), &max_cert_size);
+	ret = atcacert_read_cert_ext(m_dev, dev_cert_def->ca_cert_def, ca_public_key, sig_cert_der.data(), &max_cert_size);
 	if(ret != ATCACERT_E_SUCCESS)
 	{
 		SPDLOG_ERROR("atcacert_read_cert_ext: {:d}", ret);
