@@ -92,7 +92,7 @@ public:
 
 	std::shared_ptr<const Botan::ECDSA_PublicKey> get_master_pubkey() const
 	{
-		auto it = m_pubkeys.find(int(KEY_SLOT_ID::MASTER));
+		auto it = m_pubkeys.find(KEY_SLOT_ID::MASTER);
 		if(it == m_pubkeys.end())
 		{
 			return std::shared_ptr<const Botan::ECDSA_PublicKey>();
@@ -102,7 +102,7 @@ public:
 	}
 	std::shared_ptr<const Botan::ECDSA_PublicKey> get_attestation_pubkey() const
 	{
-		auto it = m_pubkeys.find(int(KEY_SLOT_ID::ATTESTATION));
+		auto it = m_pubkeys.find(KEY_SLOT_ID::ATTESTATION);
 		if(it == m_pubkeys.end())
 		{
 			return std::shared_ptr<const Botan::ECDSA_PublicKey>();
@@ -112,7 +112,7 @@ public:
 	}
 	std::shared_ptr<const Botan::ECDSA_PublicKey> get_user0_pubkey() const
 	{
-		auto it = m_pubkeys.find(int(KEY_SLOT_ID::USER0));
+		auto it = m_pubkeys.find(KEY_SLOT_ID::USER0);
 		if(it == m_pubkeys.end())
 		{
 			return std::shared_ptr<const Botan::ECDSA_PublicKey>();
@@ -122,7 +122,7 @@ public:
 	}
 	std::shared_ptr<const Botan::ECDSA_PublicKey> get_user1_pubkey() const // ECDH_PublicKey
 	{
-		auto it = m_pubkeys.find(int(KEY_SLOT_ID::USER1));
+		auto it = m_pubkeys.find(KEY_SLOT_ID::USER1);
 		if(it == m_pubkeys.end())
 		{
 			return std::shared_ptr<const Botan::ECDSA_PublicKey>();
@@ -132,7 +132,7 @@ public:
 	}
 	std::shared_ptr<const Botan::ECDSA_PublicKey> get_user2_pubkey() const
 	{
-		auto it = m_pubkeys.find(int(KEY_SLOT_ID::USER2));
+		auto it = m_pubkeys.find(KEY_SLOT_ID::USER2);
 		if(it == m_pubkeys.end())
 		{
 			return std::shared_ptr<const Botan::ECDSA_PublicKey>();
@@ -142,7 +142,7 @@ public:
 	}
 	std::shared_ptr<const Botan::ECDSA_PublicKey> get_sig_pubkey() const
 	{
-		auto it = m_pubkeys.find(int(KEY_SLOT_ID::SIG_PUB));
+		auto it = m_pubkeys.find(KEY_SLOT_ID::SIG_PUB);
 		if(it == m_pubkeys.end())
 		{
 			return std::shared_ptr<const Botan::ECDSA_PublicKey>();
@@ -225,7 +225,7 @@ protected:
 	std::string get_device_cert_id() const;
 	void const * get_device_cert_def(); // returns a atcacert_def_t
 
-	std::map<int, std::shared_ptr<Botan::EC_PublicKey> > m_pubkeys; // TOOD are all of these ECDSA, or should one be used for ECDH and not signature
+	std::map<KEY_SLOT_ID, std::shared_ptr<Botan::EC_PublicKey> > m_pubkeys; // TOOD are all of these ECDSA, or should one be used for ECDH and not signature
 
 	Botan::X509_Certificate m_device_cert;
 	Botan::X509_Certificate m_signer_cert;

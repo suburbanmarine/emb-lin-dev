@@ -138,7 +138,7 @@ bool ATECC608_TNGTLS_iface::init(const uint8_t bus, const uint8_t address)
 				return false;
 			}
 
-			m_pubkeys.insert_or_assign(slot_id, tmpkey);
+			m_pubkeys.insert_or_assign(static_cast<KEY_SLOT_ID>(slot_id), tmpkey);
 
 			SPDLOG_DEBUG("Pubkey {:d}: {:s} / {:s} ok", 
 				slot_id,
@@ -806,7 +806,7 @@ bool ATECC608_TNGTLS_iface::rotate_user_key(const KEY_SLOT_ID& slot, Botan::X509
 		return false;
 	}
 
-	m_pubkeys.insert_or_assign(int(slot), tmpkey);
+	m_pubkeys.insert_or_assign(slot, tmpkey);
 	
 	if( ! generate_user_cert(slot, out_cert) )
 	{
