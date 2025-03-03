@@ -223,7 +223,7 @@ protected:
 	std::map<KEY_SLOT_ID, std::shared_ptr<Botan::X509_Certificate>> user_cert_cache;
 
 	std::string get_device_cert_id() const;
-	void const * get_device_cert_def(); // returns a atcacert_def_t
+	atcacert_def_t const * get_device_cert_def();
 
 	std::map<KEY_SLOT_ID, std::shared_ptr<Botan::EC_PublicKey> > m_pubkeys; // TOOD are all of these ECDSA, or should one be used for ECDH and not signature
 

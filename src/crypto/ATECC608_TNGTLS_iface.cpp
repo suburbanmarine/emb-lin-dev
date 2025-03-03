@@ -272,7 +272,7 @@ std::string ATECC608_TNGTLS_iface::get_device_cert_id() const
 	return cert_id;
 }
 
-void const * ATECC608_TNGTLS_iface::get_device_cert_def()
+atcacert_def_t const * ATECC608_TNGTLS_iface::get_device_cert_def()
 {
 	// Use OTP0 string, eg x6tjuZMy, to id cert defaults
 
