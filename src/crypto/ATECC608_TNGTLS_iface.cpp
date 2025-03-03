@@ -338,7 +338,14 @@ bool ATECC608_TNGTLS_iface::read_device_certificate(Botan::X509_Certificate* con
 	}
 	device_cert_der.resize(max_cert_size);
 
-	*out_cert = Botan::X509_Certificate(device_cert_der);
+	try
+	{
+		*out_cert = Botan::X509_Certificate(device_cert_der);
+	}
+	catch(const std::exception& e)
+	{
+		return false;
+	}
 
 	return true;
 }
@@ -378,7 +385,14 @@ bool ATECC608_TNGTLS_iface::read_signer_certificate(Botan::X509_Certificate* con
 	}
 	sig_cert_der.resize(max_cert_size);
 
-	*out_cert = Botan::X509_Certificate(sig_cert_der);
+	try
+	{
+		*out_cert = Botan::X509_Certificate(sig_cert_der);
+	}
+	catch(const std::exception& e)
+	{
+		return false;
+	}
 
 	return true;
 }
@@ -408,7 +422,14 @@ bool ATECC608_TNGTLS_iface::read_root_certificate(Botan::X509_Certificate* const
 	}
 	root_cert_der.resize(max_cert_size);
 
-	*out_cert = Botan::X509_Certificate(root_cert_der);
+	try
+	{
+		*out_cert = Botan::X509_Certificate(root_cert_der);
+	}
+	catch(const std::exception& e)
+	{
+		return false;
+	}
 
 	return true;
 }
@@ -847,81 +868,89 @@ bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::vector<uint8_t>& ca_c
 }
 bool ATECC608_TNGTLS_iface::load_master_ca_cert(const std::shared_ptr<Botan::X509_Certificate>& ca_cert)
 {
-	if( ! ca_cert->is_CA_cert() )
+	try
 	{
-		SPDLOG_ERROR("not a CA cert");
-		return false;		
+		if( ! ca_cert->is_CA_cert() )
+		{
+			SPDLOG_ERROR("not a CA cert");
+			return false;		
+		}
+	
+		// check CN
+		std::vector<std::string> cn_vec = ca_cert->subject_info("X520.CommonName");
+		if(cn_vec.size() != 1)
+		{
+			SPDLOG_ERROR("ca_cert CN size wrong");
+			return false;		
+		}
+		if(cn_vec[0] != fmt::format("sn{:02X}", fmt::join(get_cached_sn(), "")))
+		{
+			SPDLOG_ERROR("ca_cert CN does not match");
+			return false;		
+		}
+	
+		// check pubkey
+		std::shared_ptr<const Botan::ECDSA_PublicKey> master_pubkey = get_master_pubkey();
+		if( ! master_pubkey )
+		{
+			return false;
+		}
+	
+		Botan::ECDSA_PublicKey* ca_cert_pubkey = dynamic_cast<Botan::ECDSA_PublicKey*>(ca_cert->subject_public_key());
+		if( ! ca_cert_pubkey )
+		{
+			SPDLOG_ERROR("ca_cert pubkey not a ECDSA_PublicKey");
+			return false;		
+		}
+		if(ca_cert_pubkey->domain() != master_pubkey->domain())
+		{
+			SPDLOG_ERROR("ca_cert pubkey domain does not match");
+			return false;
+		}
+		if(ca_cert_pubkey->public_point() != master_pubkey->public_point())
+		{
+			SPDLOG_ERROR("ca_cert pubkey public_point does not match");
+			return false;
+		}
+		
+		// check sig valid
+		Botan::Certificate_Status_Code sig_status = ca_cert->verify_signature(*master_pubkey);
+		if( sig_status != Botan::Certificate_Status_Code::OK )
+		{
+			SPDLOG_ERROR("ca_cert->verify_signature failed: {:s}", Botan::to_string(sig_status));
+			return false;
+		}
+	
+		if( ! ca_cert->is_CA_cert() )
+		{
+			SPDLOG_ERROR("ca_cert is not actually a ca_cert");
+			return false;
+		}
+	
+		// check timestamp
+		const auto t_0 = std::chrono::system_clock::now();
+		if(t_0 < ca_cert->not_before().to_std_timepoint())
+		{
+			SPDLOG_ERROR("ca_cert timestamp invalid");
+			return false;
+		}
+		if(ca_cert->not_after().to_std_timepoint() < t_0)
+		{
+			SPDLOG_ERROR("ca_cert timestamp invalid");
+			return false;
+		}
+	
+		master_ca_cert = ca_cert;
+		m_local_cert_store.add_certificate(ca_cert);
 	}
-
-	// check CN
-	std::vector<std::string> cn_vec = ca_cert->subject_info("X520.CommonName");
-	if(cn_vec.size() != 1)
+	catch(const std::exception& e)
 	{
-		SPDLOG_ERROR("ca_cert CN size wrong");
-		return false;		
-	}
-	if(cn_vec[0] != fmt::format("sn{:02X}", fmt::join(get_cached_sn(), "")))
-	{
-		SPDLOG_ERROR("ca_cert CN does not match");
-		return false;		
-	}
-
-	// check pubkey
-	std::shared_ptr<const Botan::ECDSA_PublicKey> master_pubkey = get_master_pubkey();
-	if( ! master_pubkey )
-	{
-		return false;
-	}
-
-	Botan::ECDSA_PublicKey* ca_cert_pubkey = dynamic_cast<Botan::ECDSA_PublicKey*>(ca_cert->subject_public_key());
-	if( ! ca_cert_pubkey )
-	{
-		SPDLOG_ERROR("ca_cert pubkey not a ECDSA_PublicKey");
-		return false;		
-	}
-	if(ca_cert_pubkey->domain() != master_pubkey->domain())
-	{
-		SPDLOG_ERROR("ca_cert pubkey domain does not match");
-		return false;
-	}
-	if(ca_cert_pubkey->public_point() != master_pubkey->public_point())
-	{
-		SPDLOG_ERROR("ca_cert pubkey public_point does not match");
+		SPDLOG_ERROR("error loading certificate: {:s}", e.what());
 		return false;
 	}
 	
-	// check sig valid
-	Botan::Certificate_Status_Code sig_status = ca_cert->verify_signature(*master_pubkey);
-	if( sig_status != Botan::Certificate_Status_Code::OK )
-	{
-		SPDLOG_ERROR("ca_cert->verify_signature failed: {:s}", Botan::to_string(sig_status));
-		return false;
-	}
-
-	if( ! ca_cert->is_CA_cert() )
-	{
-		SPDLOG_ERROR("ca_cert is not actually a ca_cert");
-		return false;
-	}
-
-	// check timestamp
-	const auto t_0 = std::chrono::system_clock::now();
-	if(t_0 < ca_cert->not_before().to_std_timepoint())
-	{
-		SPDLOG_ERROR("ca_cert timestamp invalid");
-		return false;
-	}
-	if(ca_cert->not_after().to_std_timepoint() < t_0)
-	{
-		SPDLOG_ERROR("ca_cert timestamp invalid");
-		return false;
-	}
-
-	master_ca_cert = ca_cert;
-	m_local_cert_store.add_certificate(ca_cert);
-
 	SPDLOG_DEBUG("Loaded master cert:\n{:s}", master_ca_cert->to_string());
-	
+
 	return true;
 }
 
@@ -932,103 +961,115 @@ std::optional<Botan::Certificate_Status_Code> ATECC608_TNGTLS_iface::load_user_c
 
 std::optional<Botan::Certificate_Status_Code> ATECC608_TNGTLS_iface::load_user_cert(const KEY_SLOT_ID& slot, const std::vector<uint8_t>& cert_der)
 {
-	if(cert_der.empty())
-	{
-		SPDLOG_WARN("Error loading provided user cert");
-		return std::optional<Botan::Certificate_Status_Code>();
-	}
+	std::optional<Botan::Certificate_Status_Code> path_ret_status;
 
-	if( ! master_ca_cert )
-	{
-		SPDLOG_WARN("master_ca_cert is null");
-		return std::optional<Botan::Certificate_Status_Code>{};
-	}
-
-	std::shared_ptr<const Botan::ECDSA_PublicKey> cached_user_cert_pubkey;
-	switch(slot)
-	{
-		case KEY_SLOT_ID::USER0:
-		{
-			cached_user_cert_pubkey = get_user0_pubkey();
-			break;
-		}
-		case KEY_SLOT_ID::USER1:
-		{
-			cached_user_cert_pubkey = get_user1_pubkey();
-			break;
-		}
-		case KEY_SLOT_ID::USER2:
-		{
-			cached_user_cert_pubkey = get_user2_pubkey();
-			break;
-		}
-		default:
-		{
-			cached_user_cert_pubkey.reset();
-			break;
-		}
-	}
-
-	if( ! cached_user_cert_pubkey )
-	{
-		SPDLOG_WARN("Error loading cached pubkey");
-		return std::optional<Botan::Certificate_Status_Code>();
-	}
-
-	std::shared_ptr<Botan::X509_Certificate> user_cert;
 	try
 	{
-		user_cert = std::make_shared<Botan::X509_Certificate>(cert_der);
+		if(cert_der.empty())
+		{
+			SPDLOG_WARN("Error loading provided user cert");
+			return std::optional<Botan::Certificate_Status_Code>();
+		}
+	
+		if( ! master_ca_cert )
+		{
+			SPDLOG_WARN("master_ca_cert is null");
+			return std::optional<Botan::Certificate_Status_Code>{};
+		}
+	
+		std::shared_ptr<const Botan::ECDSA_PublicKey> cached_user_cert_pubkey;
+		switch(slot)
+		{
+			case KEY_SLOT_ID::USER0:
+			{
+				cached_user_cert_pubkey = get_user0_pubkey();
+				break;
+			}
+			case KEY_SLOT_ID::USER1:
+			{
+				cached_user_cert_pubkey = get_user1_pubkey();
+				break;
+			}
+			case KEY_SLOT_ID::USER2:
+			{
+				cached_user_cert_pubkey = get_user2_pubkey();
+				break;
+			}
+			default:
+			{
+				cached_user_cert_pubkey.reset();
+				break;
+			}
+		}
+	
+		if( ! cached_user_cert_pubkey )
+		{
+			SPDLOG_WARN("Error loading cached pubkey");
+			return std::optional<Botan::Certificate_Status_Code>();
+		}
+	
+		std::shared_ptr<Botan::X509_Certificate> user_cert;
+		try
+		{
+			user_cert = std::make_shared<Botan::X509_Certificate>(cert_der);
+		}
+		catch(const std::exception& e)
+		{
+			SPDLOG_WARN("Error loading key: {:s}", e.what());
+			return std::optional<Botan::Certificate_Status_Code>();
+		}
+		
+		if( ! user_cert )
+		{
+			SPDLOG_WARN("Error loading provided user cert");
+			return std::optional<Botan::Certificate_Status_Code>();
+		}
+	
+		// check pubkey
+		Botan::ECDSA_PublicKey* user_cert_pubkey = dynamic_cast<Botan::ECDSA_PublicKey*>(user_cert->subject_public_key());
+		if( ! user_cert_pubkey )
+		{
+			SPDLOG_WARN("user_cert pubkey not a ECDSA_PublicKey");
+			return std::optional<Botan::Certificate_Status_Code>();		
+		}
+		if(user_cert_pubkey->domain() != cached_user_cert_pubkey->domain())
+		{
+			SPDLOG_WARN("user_cert pubkey domain does not match");
+			return std::optional<Botan::Certificate_Status_Code>();
+		}
+		if(user_cert_pubkey->public_point() != cached_user_cert_pubkey->public_point())
+		{
+			SPDLOG_WARN("user_cert pubkey public_point does not match");
+			return std::optional<Botan::Certificate_Status_Code>();
+		}
+		
+		// check sig valid
+		std::vector<Botan::X509_Certificate> chain = {*user_cert};
+		Botan::Path_Validation_Result path_ret = Botan::x509_path_validate(
+			chain,
+			Botan::Path_Validation_Restrictions(false, 128),
+			m_local_cert_store,
+			get_dns_name_sn()
+		);
+	
+		if( path_ret.successful_validation() )
+		{
+			user_cert_cache.insert_or_assign(slot, user_cert);
+		}
+		else
+		{
+			SPDLOG_WARN("user_cert x509_path_validate failed: {:s}", path_ret.result_string());
+		}
+
+		path_ret_status = std::make_optional(path_ret.result());
 	}
 	catch(const std::exception& e)
 	{
-		SPDLOG_WARN("Error loading key: {:s}", e.what());
-		return std::optional<Botan::Certificate_Status_Code>();
-	}
-	
-	if( ! user_cert )
-	{
-		SPDLOG_WARN("Error loading provided user cert");
+		SPDLOG_ERROR("error loading certificate: {:s}", e.what());
 		return std::optional<Botan::Certificate_Status_Code>();
 	}
 
-	// check pubkey
-	Botan::ECDSA_PublicKey* user_cert_pubkey = dynamic_cast<Botan::ECDSA_PublicKey*>(user_cert->subject_public_key());
-	if( ! user_cert_pubkey )
-	{
-		SPDLOG_WARN("user_cert pubkey not a ECDSA_PublicKey");
-		return std::optional<Botan::Certificate_Status_Code>();		
-	}
-	if(user_cert_pubkey->domain() != cached_user_cert_pubkey->domain())
-	{
-		SPDLOG_WARN("user_cert pubkey domain does not match");
-		return std::optional<Botan::Certificate_Status_Code>();
-	}
-	if(user_cert_pubkey->public_point() != cached_user_cert_pubkey->public_point())
-	{
-		SPDLOG_WARN("user_cert pubkey public_point does not match");
-		return std::optional<Botan::Certificate_Status_Code>();
-	}
-	
-	// check sig valid
-	std::vector<Botan::X509_Certificate> chain = {*user_cert};
-	Botan::Path_Validation_Result path_ret = Botan::x509_path_validate(
-		chain,
-		Botan::Path_Validation_Restrictions(false, 128),
-		m_local_cert_store,
-		get_dns_name_sn()
-	);
-
-	if( path_ret.successful_validation() )
-	{
-		user_cert_cache.insert_or_assign(slot, user_cert);
-	}
-	else
-	{
-		SPDLOG_WARN("user_cert x509_path_validate failed: {:s}", path_ret.result_string());
-	}
-
-	return std::make_optional(path_ret.result());
+	return path_ret_status;
 }
 
 std::string ATECC608_TNGTLS_iface::get_dns_name_sn() const
