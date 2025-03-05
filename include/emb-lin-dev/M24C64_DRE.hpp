@@ -26,7 +26,7 @@ public:
 	[[deprecated]] bool write_id_page(const Pagebuffer& data);
 	[[deprecated]] bool read_id_page(Pagebuffer* const out_buf);
 
-	[[deprecated]] bool probe() override
+	bool probe() override
 	{
 		return M24XXX_DRE::probe(2);
 	}

@@ -151,6 +151,8 @@ public:
 		return m_sn_cache;
 	}
 
+	std::string get_cached_sn_str() const;
+
 	const std::array<uint8_t, 128>& get_cached_config() const
 	{
 		return m_config_cache;
@@ -209,7 +211,16 @@ public:
 		}
 	}
 
+	std::recursive_mutex& get_mutex()
+	{
+		return m_mutex;
+	}
+
 protected:
+
+	std::shared_ptr<Botan::ECDSA_PublicKey> parse_atecc_pubkey(const std::array<uint8_t, 64>& pubkey_buf);
+
+	std::recursive_mutex m_mutex;
 
 	ATCAIfaceCfg m_cfg;
 	ATCADevice   m_dev;
