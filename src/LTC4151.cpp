@@ -38,7 +38,7 @@ bool LTC4151::configure()
 		return false;
 	}
 
-	const uint8_t reg = 0xC0; // freerunning ADC, page read/write, stuck bus detect
+	const uint8_t reg = 0x0C; // freerunning ADC, page read/write, stuck bus detect
 	int32_t ret = i2c_smbus_write_byte_data(m_bus->get_fd(), uint8_t(REG_ADDR::CONTROL), reg);
 	if(ret < 0)
 	{
