@@ -139,7 +139,7 @@ public:
 	}
 
 	bool read_all_adc_reg(uint16_t* const out_shunt, uint16_t* const out_bus, uint16_t* const out_aux);
-	bool read_all_adc_v(uint16_t* const out_shunt, uint16_t* const out_bus, uint16_t* const out_aux)
+	bool read_all_adc_v(float* const out_shunt, float* const out_bus, float* const out_aux)
 	{
 		uint16_t reg_s;
 		uint16_t reg_b;
