@@ -306,21 +306,29 @@ bool ATECC608_iface::read_pubkey(const uint16_t key_id, std::shared_ptr<Botan::E
 		return false;
 	}
 
-	bool fret = true;
-
 	std::array<uint8_t, 64> pub_key;
 	if( ! read_pubkey(key_id, &pub_key) )
 	{
-		fret = false;
+		return false;
 	}
 
-	if(fret)
+	try
 	{
 		Botan::EC_Group secp256r1_group("secp256r1");
-		*out_pubkey = std::make_shared<Botan::ECDSA_PublicKey>(secp256r1_group, secp256r1_group.point(Botan::BigInt(pub_key.data(), 32), Botan::BigInt(pub_key.data()+32, 32)));
+		*out_pubkey = std::make_shared<Botan::ECDSA_PublicKey>(
+			secp256r1_group, 
+			secp256r1_group.point(
+				Botan::BigInt(pub_key.data(), 32), 
+				Botan::BigInt(pub_key.data()+32, 32)
+			)
+		);
+	}
+	catch(const std::exception& e)
+	{
+		return false;
 	}
 
-	return fret;
+	return true;
 }
 
 bool ATECC608_iface::read_rand(std::array<uint8_t, 32>* const out_random)
@@ -956,21 +964,30 @@ std::string ATECC608_iface::get_cached_sn_str() const
 
 std::shared_ptr<Botan::ECDSA_PublicKey> ATECC608_iface::parse_atecc_pubkey(const std::array<uint8_t, 64>& pubkey_buf)
 {
-	Botan::EC_Group secp256r1_group("secp256r1");
-	std::shared_ptr<Botan::ECDSA_PublicKey> tmpkey = std::make_shared<Botan::ECDSA_PublicKey>(
-		secp256r1_group,
-		secp256r1_group.point(
-			Botan::BigInt(pubkey_buf.data()+ 0, 32),
-			Botan::BigInt(pubkey_buf.data()+32, 32)
-		)
-	);
+	std::shared_ptr<Botan::ECDSA_PublicKey> tmpkey;
 
-	if( ! tmpkey )
+	try
 	{
-		return std::shared_ptr<Botan::ECDSA_PublicKey>();
+		Botan::EC_Group secp256r1_group("secp256r1");
+		tmpkey = std::make_shared<Botan::ECDSA_PublicKey>(
+			secp256r1_group,
+			secp256r1_group.point(
+				Botan::BigInt(pubkey_buf.data()+ 0, 32),
+				Botan::BigInt(pubkey_buf.data()+32, 32)
+			)
+		);
+	
+		if( ! tmpkey )
+		{
+			return std::shared_ptr<Botan::ECDSA_PublicKey>();
+		}
+	
+		if( ! tmpkey->check_key(m_rng, true) )
+		{
+			return std::shared_ptr<Botan::ECDSA_PublicKey>();
+		}
 	}
-
-	if( ! tmpkey->check_key(m_rng, true) )
+	catch(const std::exception& e)
 	{
 		return std::shared_ptr<Botan::ECDSA_PublicKey>();
 	}
