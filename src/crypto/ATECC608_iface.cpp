@@ -1,6 +1,8 @@
 /**
  * This file is part of emb-lin-dev, mostly a collection of userspace drivers and helper utilities for embedded linux.
  * 
+ * This software is distrubuted in the hope it will be useful, but without any warranty, including the implied warrranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See LICENSE.txt for details.
+ * 
  * @author Jacob Schloss <jacob.schloss@suburbanmarine.io>
  * @copyright Copyright (c) 2024 Suburban Marine, Inc. All rights reserved.
  * @license Licensed under the LGPL-3.0 license. See LICENSE.txt for details.
@@ -21,6 +23,7 @@
 #include <fmt/ranges.h>
 
 #include <exception>
+#include <thread>
 
 void to_json(nlohmann::json& j, const Signature_with_nonce& val)
 {
@@ -150,8 +153,19 @@ bool ATECC608_iface::init(const uint8_t bus, const uint8_t address)
 
 	SPDLOG_INFO("atcab_init_ext: bus {:d} dev 0x{:02X}", unsigned(m_cfg.atcai2c.bus), unsigned(m_cfg.atcai2c.address));
 
-	ATCA_STATUS ret = atcab_init_ext(&m_dev, &m_cfg);
-	calib_exit(m_dev);
+	ATCA_STATUS ret;
+	for(int i = 0; i < 3; i++)
+	{
+		ret = atcab_init_ext(&m_dev, &m_cfg);
+		calib_exit(m_dev);
+
+		if(ret == ATCA_SUCCESS)
+		{
+			break;
+		}
+		SPDLOG_ERROR("error in atcab_init_ext: {:d}", ret);
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
 	if(ret != ATCA_SUCCESS)
 	{
 		SPDLOG_ERROR("error in atcab_init_ext: {:d}", ret);
@@ -292,21 +306,29 @@ bool ATECC608_iface::read_pubkey(const uint16_t key_id, std::shared_ptr<Botan::E
 		return false;
 	}
 
-	bool fret = true;
-
 	std::array<uint8_t, 64> pub_key;
 	if( ! read_pubkey(key_id, &pub_key) )
 	{
-		fret = false;
+		return false;
 	}
 
-	if(fret)
+	try
 	{
 		Botan::EC_Group secp256r1_group("secp256r1");
-		*out_pubkey = std::make_shared<Botan::ECDSA_PublicKey>(secp256r1_group, secp256r1_group.point(Botan::BigInt(pub_key.data(), 32), Botan::BigInt(pub_key.data()+32, 32)));
+		*out_pubkey = std::make_shared<Botan::ECDSA_PublicKey>(
+			secp256r1_group, 
+			secp256r1_group.point(
+				Botan::BigInt(pub_key.data(), 32), 
+				Botan::BigInt(pub_key.data()+32, 32)
+			)
+		);
+	}
+	catch(const std::exception& e)
+	{
+		return false;
 	}
 
-	return fret;
+	return true;
 }
 
 bool ATECC608_iface::read_rand(std::array<uint8_t, 32>* const out_random)
@@ -933,4 +955,42 @@ bool ATECC608_iface::verify_key_fingerprint_signature(const std::array<uint8_t, 
 	}
 
 	return verify_raw(digest, sig_data.sig, signing_pubkey);
+}
+
+std::string ATECC608_iface::get_cached_sn_str() const
+{
+	return fmt::format("sn{:02X}", fmt::join(get_cached_sn(), ""));
+}
+
+std::shared_ptr<Botan::ECDSA_PublicKey> ATECC608_iface::parse_atecc_pubkey(const std::array<uint8_t, 64>& pubkey_buf)
+{
+	std::shared_ptr<Botan::ECDSA_PublicKey> tmpkey;
+
+	try
+	{
+		Botan::EC_Group secp256r1_group("secp256r1");
+		tmpkey = std::make_shared<Botan::ECDSA_PublicKey>(
+			secp256r1_group,
+			secp256r1_group.point(
+				Botan::BigInt(pubkey_buf.data()+ 0, 32),
+				Botan::BigInt(pubkey_buf.data()+32, 32)
+			)
+		);
+	
+		if( ! tmpkey )
+		{
+			return std::shared_ptr<Botan::ECDSA_PublicKey>();
+		}
+	
+		if( ! tmpkey->check_key(m_rng, true) )
+		{
+			return std::shared_ptr<Botan::ECDSA_PublicKey>();
+		}
+	}
+	catch(const std::exception& e)
+	{
+		return std::shared_ptr<Botan::ECDSA_PublicKey>();
+	}
+
+	return tmpkey;
 }

@@ -1,6 +1,8 @@
 /**
  * This file is part of emb-lin-dev, mostly a collection of userspace drivers and helper utilities for embedded linux.
  * 
+ * This software is distrubuted in the hope it will be useful, but without any warranty, including the implied warrranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See LICENSE.txt for details.
+ * 
  * @author Jacob Schloss <jacob.schloss@suburbanmarine.io>
  * @copyright Copyright (c) 2024 Suburban Marine, Inc. All rights reserved.
  * @license Licensed under the LGPL-3.0 license. See LICENSE.txt for details.
@@ -34,7 +36,7 @@ public:
 
 		if(out_uv)
 		{
-			*out_uv = reg * 25 / 10;
+			*out_uv = ((int16_t)reg) * 25 / 10;
 		}
 
 		return true;
@@ -49,7 +51,7 @@ public:
 
 		if(out_ma)
 		{
-			*out_ma = reg * 25 * 100 / shunt_uohm;
+			*out_ma = ((int16_t)reg) * 25 * 100 / shunt_uohm;
 		}
 
 		return true;

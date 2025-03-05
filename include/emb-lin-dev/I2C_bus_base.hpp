@@ -1,6 +1,8 @@
 /**
  * This file is part of emb-lin-dev, mostly a collection of userspace drivers and helper utilities for embedded linux.
  * 
+ * This software is distrubuted in the hope it will be useful, but without any warranty, including the implied warrranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See LICENSE.txt for details.
+ * 
  * @author Jacob Schloss <jacob.schloss@suburbanmarine.io>
  * @copyright Copyright (c) 2023 Suburban Marine, Inc. All rights reserved.
  * @license Licensed under the LGPL-3.0 license. See LICENSE.txt for details.
@@ -41,6 +43,11 @@ public:
 	int32_t i2c_smbus_read_word_data_swapped(const uint8_t addr, const uint8_t cmd);
 
 	int32_t i2c_smbus_write_word_data_swapped(const uint8_t addr, const uint8_t cmd, const uint16_t reg);
+
+	std::string get_path() const
+	{
+		return m_bus_path;
+	}
 
 protected:
 

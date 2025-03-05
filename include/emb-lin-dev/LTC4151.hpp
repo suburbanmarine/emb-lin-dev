@@ -1,6 +1,8 @@
 /**
  * This file is part of emb-lin-dev, mostly a collection of userspace drivers and helper utilities for embedded linux.
  * 
+ * This software is distrubuted in the hope it will be useful, but without any warranty, including the implied warrranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See LICENSE.txt for details.
+ * 
  * @author Jacob Schloss <jacob.schloss@suburbanmarine.io>
  * @copyright Copyright (c) 2024 Suburban Marine, Inc. All rights reserved.
  * @license Licensed under the LGPL-3.0 license. See LICENSE.txt for details.
@@ -137,7 +139,7 @@ public:
 	}
 
 	bool read_all_adc_reg(uint16_t* const out_shunt, uint16_t* const out_bus, uint16_t* const out_aux);
-	bool read_all_adc_v(uint16_t* const out_shunt, uint16_t* const out_bus, uint16_t* const out_aux)
+	bool read_all_adc_v(float* const out_shunt, float* const out_bus, float* const out_aux)
 	{
 		uint16_t reg_s;
 		uint16_t reg_b;

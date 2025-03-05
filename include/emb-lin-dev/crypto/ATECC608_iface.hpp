@@ -1,6 +1,8 @@
 /**
  * This file is part of emb-lin-dev, mostly a collection of userspace drivers and helper utilities for embedded linux.
  * 
+ * This software is distrubuted in the hope it will be useful, but without any warranty, including the implied warrranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See LICENSE.txt for details.
+ * 
  * @author Jacob Schloss <jacob.schloss@suburbanmarine.io>
  * @copyright Copyright (c) 2024 Suburban Marine, Inc. All rights reserved.
  * @license Licensed under the LGPL-3.0 license. See LICENSE.txt for details.
@@ -149,6 +151,8 @@ public:
 		return m_sn_cache;
 	}
 
+	std::string get_cached_sn_str() const;
+
 	const std::array<uint8_t, 128>& get_cached_config() const
 	{
 		return m_config_cache;
@@ -207,7 +211,16 @@ public:
 		}
 	}
 
+	std::recursive_mutex& get_mutex()
+	{
+		return m_mutex;
+	}
+
 protected:
+
+	std::shared_ptr<Botan::ECDSA_PublicKey> parse_atecc_pubkey(const std::array<uint8_t, 64>& pubkey_buf);
+
+	std::recursive_mutex m_mutex;
 
 	ATCAIfaceCfg m_cfg;
 	ATCADevice   m_dev;
