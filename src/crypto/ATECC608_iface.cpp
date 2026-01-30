@@ -503,7 +503,7 @@ bool ATECC608_iface::idle()
 bool ATECC608_iface::sleep()
 {
 	ATCA_STATUS ret = calib_sleep(m_dev);
-	if(ret != ATCA_SUCCESS)
+	if((ret != ATCA_SUCCESS) || (ret != ATCA_COMM_FAIL)) // Allow com fail in case it is already asleep
 	{
 		SPDLOG_ERROR("ATECC608_iface::sleep calib_sleep: error {:d}", ret);
 		return false;
