@@ -636,7 +636,7 @@ bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* con
 		const Botan::X509_Time t_now_botan(std::chrono::system_clock::now());
 
 		const std::chrono::seconds t_now(t_now_botan.time_since_epoch());
-		const std::chrono::seconds t_y2038(0xFFFFFFFFLL);
+		const std::chrono::seconds t_y2038(0x7FFFFFFFLL);
 		const std::chrono::seconds t_left = t_y2038 - t_now;
 
 		if(t_left < std::chrono::seconds::zero())
