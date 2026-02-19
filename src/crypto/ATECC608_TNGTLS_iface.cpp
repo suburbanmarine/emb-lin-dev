@@ -635,19 +635,19 @@ bool ATECC608_TNGTLS_iface::generate_master_ca_cert(Botan::X509_Certificate* con
 	{
 		const Botan::X509_Time t_now_botan(std::chrono::system_clock::now());
 
-		const int64_t t_now   = t_now_botan.time_since_epoch();
-		const int64_t t_y2038 = 0xFFFFFFFFULL;
-		const int64_t t_left  = t_y2038 - t_now;
+		const std::chrono::seconds t_now(t_now_botan.time_since_epoch());
+		const std::chrono::seconds t_y2038(0xFFFFFFFFLL);
+		const std::chrono::seconds t_left = t_y2038 - t_now;
 
-		if(t_left < 0)
+		if(t_left < std::chrono::seconds::zero())
 		{
 			SPDLOG_ERROR("Unix epoch in the past on a 32bit time_t system");
 			return false;
 		}
 
-		const uint32_t t_left_years = t_left / (365ULL*24ULL*60ULL*60ULL);
+		const std::chrono::years t_left_years = std::chrono::floor<std::chrono::years>(t_left);
 
-		expire_time = t_left_years*365UL*24UL*60UL*60UL;
+		expire_time = std::chrono::duration_cast<std::chrono::seconds>(t_left_years).count();
 
 		SPDLOG_WARN("This is a 32bit time_t system, setting expiry to {} seconds from now", expire_time);
 	}
