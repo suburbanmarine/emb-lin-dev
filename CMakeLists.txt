@@ -53,64 +53,34 @@ add_library(emb-lin-dev
 	src/crypto/ATECC608_TNGTLS_iface.cpp
 	src/crypto/Certificate_store.cpp
 )
-if("$ENV{LINUX_DISTRO}" STREQUAL "ubuntu-26.04")
-	target_link_libraries(emb-lin-dev
-		Threads::Threads
 
-		Boost::boost
-		Boost::filesystem
+target_link_libraries(emb-lin-dev
+	Threads::Threads
 
-		nlohmann_json::nlohmann_json
+	Boost::boost
+	Boost::filesystem
 
-		spdlog::spdlog
+	nlohmann_json::nlohmann_json
 
-		i2c
-		gpiod
+	spdlog::spdlog
 
-		# TODO: make crypto optional
-		cryptoauth
-		botan-3
+	i2c
+	gpiod
 
-		emb-lin-util
-	)
+	# TODO: make crypto optional
+	cryptoauth
+	botan-2
 
-	target_include_directories(emb-lin-dev
-		PUBLIC
-			include
+	emb-lin-util
+)
 
-			# TODO: make crypto optional
-			/usr/include/botan-3
-	)
-else()
-	target_link_libraries(emb-lin-dev
-		Threads::Threads
-
-		Boost::boost
-		Boost::filesystem
-
-		nlohmann_json::nlohmann_json
-
-		spdlog::spdlog
-
-		i2c
-		gpiod
+target_include_directories(emb-lin-dev
+	PUBLIC
+		include
 
 		# TODO: make crypto optional
-		cryptoauth
-		botan-2
-
-		emb-lin-util
-	)
-
-	target_include_directories(emb-lin-dev
-		PUBLIC
-			include
-
-			# TODO: make crypto optional
-			/usr/include/botan-2
-	)
-endif()
-
+		/usr/include/botan-2
+)
 
 set_target_properties(emb-lin-dev
 PROPERTIES
